@@ -1,0 +1,218 @@
+#!/bin/bash
+# Version: 1.0.0
+# Edit By: zhaolandelong <landelong.zhao@tusimple.ai>
+# Dependencies (Details in https://tusimple.feishu.cn/docs/doccneol1k82EWdpCXKQrIaQAhb#ekmdcT):
+# - git
+# - gh(https://cli.github.com/)
+# - npm
+# - conventional-changelog
+# Notice: Run "chmod +x ./gitflow" in cmd if this script not work
+
+set -e
+
+# Define branch
+deployBR="master"
+releaseBR="release"
+developBR="develop"
+
+doMerge() {
+  mergeType=$1
+  sourceBR=$2
+  targetBR=$3
+  echo -e "\n\033[0;34m===== $sourceBR $mergeType $targetBR start =====\033[0m\n"
+  git checkout $targetBR && git pull -r
+  git checkout $sourceBR && git fetch -p
+  if [ $(git branch -r | grep ${sourceBR}$) ]; then
+    git pull -r
+  fi
+  git $mergeType $targetBR
+  if [ $mergeType == "merge" ]; then
+    git push -u origin $sourceBR
+  else
+    git push -u origin $sourceBR --force-with-lease
+  fi
+  echo -e "\n\033[0;32m===== $sourceBR $mergeType $targetBR finish =====\033[0m\n"
+}
+
+doVersionUpdate() {
+  sourceBR=$1
+  targetBR=$2
+  versionType=$3
+  version=""
+
+  git checkout $sourceBR && git pull -r
+  npm version $versionType
+  version=$(node -p -e "require('./package.json').version")
+  git push
+  git push origin $version
+
+  prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
+  if [ $prStat -eq 0 ]; then
+    gh pr create --title "RELEASE: ${version}" --body-file CHANGELOG.md --base $targetBR
+  fi
+}
+
+doFinish() {
+  type=$1
+  sourceBR=$2
+
+  case $type in
+  "feature")
+    gh pr merge $sourceBR -rd
+    ;;
+  "bugfix")
+    gh pr merge $sourceBR -rd
+    doMerge rebase $developBR $releaseBR
+    ;;
+  "hotfix")
+    doVersionUpdate $sourceBR $deployBR patch
+    gh pr ready $sourceBR && gh pr merge $sourceBR -md
+    version=$(node -p -e "require('./package.json').version")
+    gh release create $version --title $version --notes-file CHANGELOG.md
+    doMerge rebase $releaseBR $deployBR
+    doMerge rebase $developBR $releaseBR
+    ;;
+  "UAT")
+    gh pr merge $sourceBR -r
+    doMerge rebase $developBR $releaseBR
+    ;;
+  "DEPLOY")
+    gh pr merge $sourceBR -r
+    version=$(node -p -e "require('./package.json').version")
+    gh release create $version --title $version --notes-file CHANGELOG.md
+    doMerge rebase $developBR $releaseBR
+    ;;
+  esac
+}
+
+doWorkflow() {
+  type=$1
+  method=$2
+  sourceBR=$3
+
+  targetBR=""
+  label=""
+
+  case $type in
+  "feature")
+    targetBR=$developBR
+    label="enhancement"
+    ;;
+  "bugfix")
+    targetBR=$releaseBR
+    label="invalid"
+    ;;
+  "hotfix")
+    targetBR=$deployBR
+    label="bug"
+    ;;
+  "UAT")
+    targetBR=$releaseBR
+    ;;
+  "DEPLOY")
+    targetBR=$deployBR
+    ;;
+  esac
+
+  case $method in
+  "start")
+    if [ $type == "UAT" -o $type == "DEPLOY" ]; then
+      break
+    fi
+    git checkout $targetBR
+    git pull -r
+    git checkout -b $sourceBR
+    ;;
+  "submit")
+    prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
+
+    if [ $type == "DEPLOY" ]; then
+      doVersionUpdate $releaseBR $deployBR minor
+    else
+      doMerge rebase $sourceBR $targetBR
+      prBody=$(git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M")
+      if [ $prStat -eq 0 ]; then
+        gh pr create --title "$sourceBR to $targetBR" --body "$prBody" --base $targetBR --label "$label"
+      else
+        gh pr edit --body "$prBody"
+      fi
+    fi
+    ;;
+  "finish")
+    doFinish $type $sourceBR
+    ;;
+  esac
+}
+
+main() {
+  type=$1
+  name=$2
+  method=$3
+  branch=""
+
+  # Auto fill the params if the branch name has "/"
+  if [ ${#type} -eq 0 ]; then
+    currentBranch=$(git rev-parse --abbrev-ref HEAD)
+    split_index=$(expr index "$currentBranch" / | xargs)
+    if [ $split_index -ne 0 ]; then
+      tmpType=${currentBranch:0:split_index-1}
+      tmpName=${currentBranch:split_index:${#currentBranch}}
+      echo "Do you want to use current params?"
+      echo "- Type: $tmpType"
+      echo "- Name: $tmpName"
+      select confirm in "yes" "no"; do
+        if [ $confirm == "yes" ]; then
+          type=$tmpType
+          name=$tmpName
+        fi
+        break
+      done
+    fi
+  fi
+
+  # Fill $type
+  if [ ${#type} -eq 0 ]; then
+    echo "What's the type? (Notice: Admin Permission needed with UAT and DEPLOY)"
+    select type in "feature" "bugfix" "hotfix" "UAT" "DEPLOY"; do
+      echo "- Type: $type"
+      break
+    done
+  fi
+
+  # Fill $name
+  if [ $type != "UAT" -a $type != "DEPLOY" -a ${#name} -eq 0 ]; then
+    echo "What's the name (description for short. eg: btn-display-error)?"
+    read name
+    echo "- Name: $name"
+  fi
+
+  # Generate $branch
+  case $type in
+  "UAT")
+    branch=$developBR
+    ;;
+  "DEPLOY")
+    branch=$releaseBR
+    ;;
+  *)
+    branch="$type/$name"
+    ;;
+  esac
+
+  # Fill $method
+  if [ ${#method} -eq 0 ]; then
+    echo "What's the method?"
+    echo "- start: Start a work and create a new branch"
+    echo "- submit: Submit a PR"
+    echo "- finish: Merge the PR after CR and delete branch"
+    select method in "start" "submit" "finish"; do
+      echo "- Method: $method"
+      break
+    done
+  fi
+
+  # Do workflow
+  doWorkflow $type $method $branch
+}
+
+main $1 $2 $3

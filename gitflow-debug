@@ -1,0 +1,74 @@
+#!/bin/bash
+# Version: 1.0.0
+# Edit By: zhaolandelong <landelong.zhao@tusimple.ai>
+# Dependencies (Details in https://tusimple.feishu.cn/docs/doccneol1k82EWdpCXKQrIaQAhb#ekmdcT):
+# - ./gitflow
+# Notice: Run "chmod +x ./workflow" in cmd if this script not work
+set -e
+
+local=1
+
+doInit() {
+  tag="1.0.0"
+  brCmd="git checkout br && git reset --hard $tag"
+  tagCmd="git tag -d tt"
+  if [ $local -ne 1 ]; then
+    brCmd="${brCmd} && git push -f"
+    tagCmd="${tagCmd};git push origin :refs/tags/tt"
+  fi
+  echo "master/develop/release" | sed 's/\//\n/g' | xargs -I br sh -c "$brCmd"
+  git tag | grep -v $tag | xargs -I tt sh -c "$tagCmd"
+}
+
+doFeature() {
+  if [ $local -eq 1 ]; then
+    echo "feature/feat$1" | xargs -I ff sh -c 'git checkout develop && git checkout -b ff;echo "ff `date`" >> test.txt;git ci -am "feat: ff `date`";git checkout develop && git rebase ff;git br -D ff'
+  else
+    echo "feat$1" | xargs -I ff sh -c './gitflow feature ff start;echo "ff `date`" >> test.txt;git ci -am "feat: ff `date`";./gitflow feature ff submit;./gitflow feature ff finish'
+  fi
+}
+
+doBugfix() {
+  if [ $local -eq 1 ]; then
+    echo "bugfix/bf$1" | xargs -I bf sh -c 'git checkout release && git checkout -b bf;echo "bf `date`" >> bugfix.txt;git ci -am "fix: bf `date`";git checkout release && git rebase bf;git br -D bf && git checkout develop && git rebase release'
+  else
+    echo "bf$1" | xargs -I bf sh -c './gitflow bugfix bf start;echo "bf `date`" >> bugfix.txt;git ci -am "fix: bf `date`";./gitflow bugfix bf submit;./gitflow bugfix bf finish'
+  fi
+}
+
+doHotfix() {
+  if [ $local -eq 1 ]; then
+    echo "hotfix/hf$1" | xargs -I hh sh -c 'git checkout master && git checkout -b hh;echo "hh `date`" >> hotfix.txt;git ci -am "fix: hh `date`" && npm version patch;git checkout master && git rebase hh;git br -D hh && git checkout release && git rebase master && git checkout develop && git rebase release'
+  else
+    echo "hotfix$1" | xargs -I hh sh -c './gitflow hotfix hh start;echo "hh `date`" >> hotfix.txt;git ci -am "fix: hh `date`";./gitflow hotfix hh submit;./gitflow hotfix hh finish'
+  fi
+}
+
+doUAT() {
+  if [ $local -eq 1 ]; then
+    git checkout develop && npx conventional-changelog -p angular -o CHANGELOG.md -u && git checkout release && git rebase develop
+  else
+    ./gitflow UAT "x" submit
+    ./gitflow UAT "x" finish
+  fi
+}
+
+doDeploy() {
+  if [ $local -eq 1 ]; then
+    git checkout release && npm version minor && git checkout master && git rebase release && git checkout develop && git rebase release
+  else
+    ./gitflow DEPLOY "x" submit
+    ./gitflow DEPLOY "x" finish
+  fi
+}
+
+# doInit
+# doFeature 12
+# doHotfix 12
+# doHotfix 2
+# doFeature 2
+# doUAT
+# doBugfix 1
+# doHotfix 13
+# doBugfix 2
+# doDeploy
