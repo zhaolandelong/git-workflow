@@ -24,9 +24,8 @@ echo -e "\ntag-version-prefix=\"\"\nmessage=\"chore(release): %s :tada:\"" >> .n
 echo -e "\n# Git workflow log\nCHANGELOG.md" >> .gitignore
 
 # 4. 在 package.json 中增加 version 命令，触发 npm version 的 hook
-#  "scripts": {
-#    "version": "conventional-changelog -p angular -o CHANGELOG.md"
-#  },
+# 注：npm 版本在 v7.x 以下需要手动修改 package.json
+npm set-script version "conventional-changelog -p angular -o CHANGELOG.md"
 
 # 5. 复制 gitflow 到本地目录，并修改其权限
 curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow > gitflow && chmod +x ./gitflow
@@ -34,8 +33,12 @@ curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow >
 
 3. 切好 master、release、develop 3 个功能分支，并推到远端。名字可以变，只要功能对应上即可，**但要记得手动修改脚本中的变量**；
 
-4. 修改 package.json 的 version 至合理版本，将以上所有变化提交 commit。即 `git add . && git commit -m 'chore: gitflow init'`
-5. 打上相应版本 tag，把当前变化与 tag 都同步到远端。即 `git tag x.x.x && git push && git push --tags`
+4. 修改 package.json 的 version 至合理版本，将以上所有变化提交 commit。打上相应版本 tag，把当前变化与 tag 都同步到远端。
+```bash
+git add . && git commit -m 'chore: gitflow init' && git push
+
+git tag x.x.x && git push origin x.x.x
+```
 
 ## 用法
 运行 `./gitflow` 即可，会有可交互的提示。举例：
