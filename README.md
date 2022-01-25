@@ -11,7 +11,7 @@
 
 ## 准备
 
-1. 安装 [gh](https://cli.github.com/)，安装方法见官网；
+1. 安装 [gh](https://cli.github.com/)，并执行 `gh auth login` 登录，推荐使用浏览器模式授权，安装方法见官网；
 2. 安装 [conventional-changelog](https://github.com/conventional-changelog/conventional-changelog) 并初始化，命令如下：
 ```bash
 # 1. 安装 conventional-changelog-cli
