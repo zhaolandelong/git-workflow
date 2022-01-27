@@ -4,11 +4,9 @@
 # Dependencies:
 # - git
 # - gh(https://cli.github.com/)
-# Notice: Run "chmod +x ./gitflow" in cmd if this script not work
-
-# TODO:
-# 1. CHANGELOG optimize
-# 2. gh release optimize
+# - npm
+# - conventional-changelog
+# Notice: Run "chmod +x ./gitflow-nodejs" in cmd if this script not work
 
 set -e
 
@@ -16,7 +14,6 @@ set -e
 deployBR="master"
 releaseBR="release"
 developBR="develop"
-initVer=$(git ls-remote --tags origin | awk '/\^\{\}/{}END{print $2}' | sed "s/.*\/\([0-9\.]*\).*/\1/g")
 
 doMerge() {
   mergeType=$1
@@ -37,56 +34,22 @@ doMerge() {
   echo -e "\n\033[0;32m===== $sourceBR $mergeType $targetBR finish =====\033[0m\n"
 }
 
-doChangelog() {
-  sourceBR=$1
-  targetBR=$2
-  git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M" >CHANGELOG.md
-}
-
-# SIDE EFFECTS
-# Usage:
-# version="1.2.3"
-# doVersion version patch
-# echo $version # 1.2.4
-doVersion() {
-  verParam=$1
-  verType=$2
-  ver=""
-
-  eval "ver=\$$verParam"
-  arr=(${ver//./ })
-  n=0
-  if [ $verType == "patch" ]; then
-    n=2
-  elif [ $verType == "minor" ]; then
-    n=1
-  fi
-  arr[$n]=$(expr 1 + ${arr[$n]})
-  arrStr="${arr[@]}"
-  eval "$verParam=${arrStr// /.}"
-}
-
-# SIDE EFFECTS
-doUpdateVersionAndPR() {
+doVersionUpdate() {
   sourceBR=$1
   targetBR=$2
   versionType=$3
-  baseVerParam=$4
-
   version=""
-  eval "version=\$$baseVerParam"
 
   git checkout $sourceBR && git pull -r
-  doVersion version $versionType
-  doChangelog $sourceBR $targetBR
+  npm version $versionType
+  version=$(node -p -e "require('./package.json').version")
   git push
-  git tag $version && git push origin $version
+  git push origin $version
 
   prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
   if [ $prStat -eq 0 ]; then
     gh pr create --title "RELEASE: ${version}" --body-file CHANGELOG.md --base $targetBR
   fi
-  eval "$baseVerParam=$version"
 }
 
 doFinish() {
@@ -102,9 +65,10 @@ doFinish() {
     doMerge rebase $developBR $releaseBR
     ;;
   "hotfix")
-    doUpdateVersionAndPR $sourceBR $deployBR patch initVer
+    doVersionUpdate $sourceBR $deployBR patch
     gh pr ready $sourceBR && gh pr merge $sourceBR -md
-    gh release create $initVer --title $initVer --notes-file CHANGELOG.md
+    version=$(node -p -e "require('./package.json').version")
+    gh release create $version --title $version --notes-file CHANGELOG.md
     doMerge rebase $releaseBR $deployBR
     doMerge rebase $developBR $releaseBR
     ;;
@@ -114,7 +78,8 @@ doFinish() {
     ;;
   "DEPLOY")
     gh pr merge $sourceBR -r
-    gh release create $initVer --title $initVer --notes-file CHANGELOG.md
+    version=$(node -p -e "require('./package.json').version")
+    gh release create $version --title $version --notes-file CHANGELOG.md
     doMerge rebase $developBR $releaseBR
     ;;
   esac
@@ -162,7 +127,7 @@ doWorkflow() {
     prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
 
     if [ $type == "DEPLOY" ]; then
-      doUpdateVersionAndPR $releaseBR $deployBR minor initVer
+      doVersionUpdate $releaseBR $deployBR minor
     else
       doMerge rebase $sourceBR $targetBR
       prBody=$(git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M")
