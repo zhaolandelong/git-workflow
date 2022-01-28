@@ -49,21 +49,19 @@ doChangelog() {
 # doVersion version patch
 # echo $version # 1.2.4
 doVersion() {
-  verParam=$1
-  verType=$2
-  ver=""
+  eval "ver=\$$1"
 
-  eval "ver=\$$verParam"
-  arr=(${ver//./ })
-  n=0
-  if [ $verType == "patch" ]; then
-    n=2
-  elif [ $verType == "minor" ]; then
-    n=1
-  fi
-  arr[$n]=$(expr 1 + ${arr[$n]})
-  arrStr="${arr[@]}"
-  eval "$verParam=${arrStr// /.}"
+  IFS=. read -r major minor patch <<EOF
+$ver
+EOF
+
+  case "$2" in
+  patch) tag="$major.$minor.$((patch + 1))" ;;
+  major) tag="$((major + 1)).0.0" ;;
+  *) tag="$major.$((minor + 1)).0" ;;
+  esac
+
+  eval "$1=$tag"
 }
 
 # SIDE EFFECTS
@@ -179,11 +177,27 @@ doWorkflow() {
   esac
 }
 
+doCheck() {
+  git fetch -p
+  # branch check
+  if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($deployBR|$releaseBR|$developBR)") -ne 3 ]; then
+    echo -e "\n\033[0;31mPlease create [$deployBR, $releaseBR, $developBR] branches and push them to origin first.\033[0m\n"
+    exit
+  fi
+  # tag check
+  if [ $(git ls-remote --tags origin | awk '{print $2}' | grep -Ec "^refs/tags/[0-9]+\.[0-9]+\.[0-9]+(\^\{\})?$") -eq 0 ]; then
+    echo -e "\n\033[0;31mPlease create a SEMVER tag and push it to origin first.\neg: 1.0.0, 0.0.0\033[0m\n"
+    exit
+  fi
+}
+
 main() {
   type=$1
   name=$2
   method=$3
   branch=""
+
+  doCheck
 
   # Auto fill the params if the branch name has "/"
   if [ ${#type} -eq 0 ]; then
