@@ -16,7 +16,11 @@ set -e
 deployBR="master"
 releaseBR="release"
 developBR="develop"
-initVer=$(git ls-remote --tags origin | awk '/\^\{\}/{}END{print $2}' | sed "s/.*\/\([0-9\.]*\).*/\1/g")
+
+_tagVersion=""
+setVersion() {
+  _tagVersion=$1
+}
 
 doMerge() {
   mergeType=$1
@@ -45,11 +49,10 @@ doChangelog() {
 
 # SIDE EFFECTS
 # Usage:
-# version="1.2.3"
-# doVersion version patch
-# echo $version # 1.2.4
-doVersion() {
-  eval "ver=\$$1"
+# doAndSetVersion 1.2.3 patch
+# echo $_tagVersion # 1.2.4
+doAndSetVersion() {
+  ver=$1
 
   IFS=. read -r major minor patch <<EOF
 $ver
@@ -61,7 +64,7 @@ EOF
   *) tag="$major.$((minor + 1)).0" ;;
   esac
 
-  eval "$1=$tag"
+  setVersion $ver
 }
 
 # SIDE EFFECTS
@@ -69,22 +72,17 @@ doUpdateVersionAndPR() {
   sourceBR=$1
   targetBR=$2
   versionType=$3
-  baseVerParam=$4
-
-  version=""
-  eval "version=\$$baseVerParam"
 
   git checkout $sourceBR && git pull -r
-  doVersion version $versionType
+  doAndSetVersion $_tagVersion $versionType
   doChangelog $sourceBR $targetBR
   git push
-  git tag $version && git push origin $version
+  git tag $_tagVersion && git push origin $_tagVersion
 
   prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
   if [ $prStat -eq 0 ]; then
-    gh pr create --title "RELEASE: ${version}" --body-file CHANGELOG.md --base $targetBR
+    gh pr create --title "RELEASE: $_tagVersion" --body-file CHANGELOG.md --base $targetBR
   fi
-  eval "$baseVerParam=$version"
 }
 
 doFinish() {
@@ -100,9 +98,9 @@ doFinish() {
     doMerge rebase $developBR $releaseBR
     ;;
   "hotfix")
-    doUpdateVersionAndPR $sourceBR $deployBR patch initVer
+    doUpdateVersionAndPR $sourceBR $deployBR patch
     gh pr ready $sourceBR && gh pr merge $sourceBR -md
-    gh release create $initVer --title $initVer --notes-file CHANGELOG.md
+    gh release create $_tagVersion --title $_tagVersion --notes-file CHANGELOG.md
     doMerge rebase $releaseBR $deployBR
     doMerge rebase $developBR $releaseBR
     ;;
@@ -112,7 +110,7 @@ doFinish() {
     ;;
   "DEPLOY")
     gh pr merge $sourceBR -r
-    gh release create $initVer --title $initVer --notes-file CHANGELOG.md
+    gh release create $_tagVersion --title $_tagVersion --notes-file CHANGELOG.md
     doMerge rebase $developBR $releaseBR
     ;;
   esac
@@ -160,7 +158,7 @@ doWorkflow() {
     prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
 
     if [ $type == "DEPLOY" ]; then
-      doUpdateVersionAndPR $releaseBR $deployBR minor initVer
+      doUpdateVersionAndPR $releaseBR $deployBR minor
     else
       doMerge rebase $sourceBR $targetBR
       prBody=$(git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M")
@@ -196,8 +194,6 @@ main() {
   name=$2
   method=$3
   branch=""
-
-  doCheck
 
   # Auto fill the params if the branch name has "/"
   if [ ${#type} -eq 0 ]; then
@@ -263,5 +259,9 @@ main() {
   # Do workflow
   doWorkflow $type $method $branch
 }
+
+doCheck
+
+setVersion $(git ls-remote --tags origin | awk "{print \$2}" | sort -t "." -k1,1n -k2,2n -k3,3n | awk "/\^\{\}/{}END{print}" | sed "s/.*\/\([0-9\.]*\).*/\1/g")
 
 main $1 $2 $3
