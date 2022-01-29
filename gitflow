@@ -12,13 +12,9 @@ set -e
 deployBR="master"
 releaseBR="release"
 developBR="develop"
+logFile="CHANGELOG.md"
 
-_tagVersion=""
-setVersion() {
-  _tagVersion=$1
-}
-
-doMerge() {
+doMergeAndPush() {
   mergeType=$1
   sourceBR=$2
   targetBR=$3
@@ -30,35 +26,35 @@ doMerge() {
   fi
   git $mergeType $targetBR
   if [ $mergeType == "merge" ]; then
-    git push -u origin $sourceBR
+    git push --set-upstream origin $sourceBR
   else
-    git push -u origin $sourceBR --force-with-lease
+    git push --set-upstream origin $sourceBR --force-with-lease
   fi
   echo -e "\n\033[0;32m===== $sourceBR $mergeType $targetBR finish =====\033[0m\n"
 }
 
-doChangelog() {
-  preTag=$1
-  curTag=$2
-  echo -e "## $curTag ($(git show $curTag -s --pretty=format:"%cd" --date=format:"%Y-%m-%d" | awk "END{print}"))\n" >CHANGELOG.md
-  logs=$(git log --pretty=format:"%s (%h)" $preTag...$curTag)
+setChangelog() {
+  preCommit=$1
+  curCommit=$2
+  echo -e "## $_tagVersion ($(git show $curCommit -s --pretty=format:"%cd" --date=format:"%Y-%m-%d" | awk "END{print}"))\n" >$logFile
+  logs=$(git log --pretty=format:"%s (%h)" $preCommit...$curCommit)
   if [ $(echo "$logs" | grep -Ec "^feat:") -gt 0 ]; then
-    echo -e "\n### Features\n" >>CHANGELOG.md
-    echo "$logs" | grep -E "^feat: " | sed "s/feat:/*/" >>CHANGELOG.md
-    echo "$logs" | grep -E "^feat\(.+\): " | sort | sed "s/feat(\(.*\)):/* **\1:** /" >>CHANGELOG.md
+    echo -e "\n### Features\n" >>$logFile
+    echo "$logs" | grep -E "^feat: " | sed "s/feat:/*/" >>$logFile
+    echo "$logs" | grep -E "^feat\(.+\): " | sort | sed "s/feat(\(.*\)):/* **\1:** /" >>$logFile
   fi
   if [ $(echo "$logs" | grep -Ec "^fix:") -gt 0 ]; then
-    echo -e "\n### Bug Fixes\n" >>CHANGELOG.md
-    echo "$logs" | grep -E "^fix: " | sed "s/fix:/*/" >>CHANGELOG.md
-    echo "$logs" | grep -E "^fix\(.+\): " | sort | sed "s/fix(\(.*\)):/* **\1:** /" >>CHANGELOG.md
+    echo -e "\n### Bug Fixes\n" >>$logFile
+    echo "$logs" | grep -E "^fix: " | sed "s/fix:/*/" >>$logFile
+    echo "$logs" | grep -E "^fix\(.+\): " | sort | sed "s/fix(\(.*\)):/* **\1:** /" >>$logFile
   fi
 }
 
 # SIDE EFFECTS
 # Usage:
-# doAndSetVersion 1.2.3 patch
+# _updateVersion 1.2.3 patch
 # echo $_tagVersion # 1.2.4
-doAndSetVersion() {
+_updateVersion() {
   ver=$1
 
   IFS=. read -r major minor patch <<EOF
@@ -71,31 +67,13 @@ EOF
   *) tag="$major.$((minor + 1)).0" ;;
   esac
 
-  setVersion $ver
-}
-
-# SIDE EFFECTS
-doUpdateVersionAndPR() {
-  sourceBR=$1
-  targetBR=$2
-  versionType=$3
-  oldVersion=$_tagVersion
-
-  git checkout $sourceBR && git pull -r
-  doAndSetVersion $_tagVersion $versionType
-  doChangelog $oldVersion $_tagVersion
-  git push
-  git tag $_tagVersion && git push origin $_tagVersion
-
-  prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
-  if [ $prStat -eq 0 ]; then
-    gh pr create --title "RELEASE: $_tagVersion" --body-file CHANGELOG.md --base $targetBR
-  fi
+  _tagVersion=$ver
 }
 
 doFinish() {
   type=$1
   sourceBR=$2
+  oldVersion=$_tagVersion
 
   case $type in
   "feature")
@@ -103,25 +81,64 @@ doFinish() {
     ;;
   "bugfix")
     gh pr merge $sourceBR -rd
-    doMerge rebase $developBR $releaseBR
+    doMergeAndPush rebase $developBR $releaseBR
     ;;
   "hotfix")
-    doUpdateVersionAndPR $sourceBR $deployBR patch
-    gh pr ready $sourceBR && gh pr merge $sourceBR -md
-    gh release create $_tagVersion --title $_tagVersion --notes-file CHANGELOG.md
-    doMerge rebase $releaseBR $deployBR
-    doMerge rebase $developBR $releaseBR
+    _updateVersion $oldVersion patch
+    git tag $_tagVersion && git push origin $_tagVersion
+    gh pr merge $sourceBR -md
+    setChangelog $oldVersion $_tagVersion
+    gh release create $_tagVersion --title $_tagVersion --notes-file $logFile
+    doMergeAndPush rebase $releaseBR $deployBR
+    doMergeAndPush rebase $developBR $releaseBR
     ;;
   "UAT")
     gh pr merge $sourceBR -r
-    doMerge rebase $developBR $releaseBR
+    doMergeAndPush rebase $developBR $releaseBR
     ;;
   "DEPLOY")
+    _updateVersion $oldVersion minor
+    git tag $_tagVersion && git push origin $_tagVersion
     gh pr merge $sourceBR -r
-    gh release create $_tagVersion --title $_tagVersion --notes-file CHANGELOG.md
-    doMerge rebase $developBR $releaseBR
+    setChangelog $oldVersion $_tagVersion
+    gh release create $_tagVersion --title $_tagVersion --notes-file $logFile
+    doMergeAndPush rebase $developBR $releaseBR
     ;;
   esac
+}
+
+doSubmit() {
+  type=$1
+  sourceBR=$2
+  targetBR=$3
+  label=$4
+
+  oldVersion=$_tagVersion
+  doMergeAndPush rebase $sourceBR $targetBR
+
+  case $type in
+  "DEPLOY")
+    _updateVersion $oldVersion minor
+    title="RELEASE: $_tagVersion"
+    setChangelog $oldVersion $_tagVersion
+    ;;
+  "hotfix")
+    _updateVersion $oldVersion patch
+    title="HOTFIX($_tagVersion): $sourceBR"
+    setChangelog $oldVersion $_tagVersion
+    ;;
+  *)
+    title="$sourceBR to $targetBR"
+    git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M" >$logFile
+    ;;
+  esac
+
+  prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
+  if [ $prStat -eq 0 ]; then
+    gh pr create --title $title --body-file $logFile --base $targetBR --label "$label"
+  else
+    gh pr edit --body-file $logFile
+  fi
 }
 
 doWorkflow() {
@@ -156,26 +173,15 @@ doWorkflow() {
   case $method in
   "start")
     if [ $type == "UAT" -o $type == "DEPLOY" ]; then
-      break
+      echo "UAT and DEPOLY can't start"
+      exit
     fi
     git checkout $targetBR
     git pull -r
     git checkout -b $sourceBR
     ;;
   "submit")
-    prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
-
-    if [ $type == "DEPLOY" ]; then
-      doUpdateVersionAndPR $releaseBR $deployBR minor
-    else
-      doMerge rebase $sourceBR $targetBR
-      prBody=$(git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M")
-      if [ $prStat -eq 0 ]; then
-        gh pr create --title "$sourceBR to $targetBR" --body "$prBody" --base $targetBR --label "$label"
-      else
-        gh pr edit --body "$prBody"
-      fi
-    fi
+    doSubmit $type $sourceBR $targetBR $label
     ;;
   "finish")
     doFinish $type $sourceBR
@@ -270,6 +276,6 @@ main() {
 
 doCheck
 
-setVersion $(git ls-remote --tags origin | awk "{print \$2}" | sort -t "." -k1,1n -k2,2n -k3,3n | awk "/\^\{\}/{}END{print}" | sed "s/.*\/\([0-9\.]*\).*/\1/g")
+_tagVersion=$(git ls-remote --tags origin | awk "{print \$2}" | sort -t "." -k1,1n -k2,2n -k3,3n | awk "/\^\{\}/{}END{print}" | sed "s/.*\/\([0-9\.]*\).*/\1/g")
 
 main $1 $2 $3
