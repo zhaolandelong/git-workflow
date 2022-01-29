@@ -1,14 +1,10 @@
 #!/bin/bash
-# Version: 1.0.0
+# Version: 1.2.0
 # Edit By: zhaolandelong <landelong.zhao@tusimple.ai>
 # Dependencies:
 # - git
 # - gh(https://cli.github.com/)
 # Notice: Run "chmod +x ./gitflow" in cmd if this script not work
-
-# TODO:
-# 1. CHANGELOG optimize
-# 2. gh release optimize
 
 set -e
 
@@ -42,9 +38,20 @@ doMerge() {
 }
 
 doChangelog() {
-  sourceBR=$1
-  targetBR=$2
-  git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M" >CHANGELOG.md
+  preTag=$1
+  curTag=$2
+  echo -e "## $curTag ($(git show $curTag -s --pretty=format:"%cd" --date=format:"%Y-%m-%d" | awk "END{print}"))\n" >CHANGELOG.md
+  logs=$(git log --pretty=format:"%s (%h)" $preTag...$curTag)
+  if [ $(echo "$logs" | grep -Ec "^feat:") -gt 0 ]; then
+    echo -e "\n### Features\n" >>CHANGELOG.md
+    echo "$logs" | grep -E "^feat: " | sed "s/feat:/*/" >>CHANGELOG.md
+    echo "$logs" | grep -E "^feat\(.+\): " | sort | sed "s/feat(\(.*\)):/* **\1:** /" >>CHANGELOG.md
+  fi
+  if [ $(echo "$logs" | grep -Ec "^fix:") -gt 0 ]; then
+    echo -e "\n### Bug Fixes\n" >>CHANGELOG.md
+    echo "$logs" | grep -E "^fix: " | sed "s/fix:/*/" >>CHANGELOG.md
+    echo "$logs" | grep -E "^fix\(.+\): " | sort | sed "s/fix(\(.*\)):/* **\1:** /" >>CHANGELOG.md
+  fi
 }
 
 # SIDE EFFECTS
@@ -72,10 +79,11 @@ doUpdateVersionAndPR() {
   sourceBR=$1
   targetBR=$2
   versionType=$3
+  oldVersion=$_tagVersion
 
   git checkout $sourceBR && git pull -r
   doAndSetVersion $_tagVersion $versionType
-  doChangelog $sourceBR $targetBR
+  doChangelog $oldVersion $_tagVersion
   git push
   git tag $_tagVersion && git push origin $_tagVersion
 
