@@ -12,7 +12,10 @@ set -e
 deployBR="master"
 releaseBR="release"
 developBR="develop"
+
 logFile="CHANGELOG.md"
+gitOriginUrl=$(grep -E "^\s+url = .+\.git$" .git/config | awk "{print \$3}")
+gitUrl=${gitOriginUrl:0:-4}
 
 setChangelog() {
   preCommit=$1
@@ -21,9 +24,14 @@ setChangelog() {
   if [ ${#3} -gt 0 ]; then
     title=$3
   fi
+  curCommitInfo=$(git show $curCommit -s --pretty=format:"%cd %H" --date=format:"%Y-%m-%d" | awk "END{print}")
+  if [ $curCommit == "HEAD" ]; then
+    curCommit=$(echo $curCommitInfo | awk '{print $2}')
+  fi
 
-  echo -e "## $title ($(git show $curCommit -s --pretty=format:"%cd" --date=format:"%Y-%m-%d" | awk "END{print}"))\n" >$logFile
-  logs=$(git log --pretty=format:"%s (%h)" $preCommit...$curCommit)
+  echo -e "# [$title]($gitUrl/compare/$preCommit...$curCommit) ($(echo $curCommitInfo | awk '{print $1}'))\n" >$logFile
+
+  logs=$(git log --pretty=format:"%s ([%h]($gitUrl/commits/%H))" $preCommit...$curCommit)
   if [ $(echo "$logs" | grep -Ec "^feat:") -gt 0 ]; then
     echo -e "\n### Features\n" >>$logFile
     echo "$logs" | grep -E "^feat: " | sed "s/feat:/*/" >>$logFile
