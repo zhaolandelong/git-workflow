@@ -14,25 +14,6 @@ releaseBR="release"
 developBR="develop"
 logFile="CHANGELOG.md"
 
-doMergeAndPush() {
-  mergeType=$1
-  sourceBR=$2
-  targetBR=$3
-  echo -e "\n\033[0;34m===== $sourceBR $mergeType $targetBR start =====\033[0m\n"
-  git checkout $targetBR && git pull -r
-  git checkout $sourceBR && git fetch -p
-  if [ $(git branch -r | grep ${sourceBR}$) ]; then
-    git pull -r
-  fi
-  git $mergeType $targetBR
-  if [ $mergeType == "merge" ]; then
-    git push --set-upstream origin $sourceBR
-  else
-    git push --set-upstream origin $sourceBR --force-with-lease
-  fi
-  echo -e "\n\033[0;32m===== $sourceBR $mergeType $targetBR finish =====\033[0m\n"
-}
-
 setChangelog() {
   preCommit=$1
   curCommit=$2
@@ -68,6 +49,25 @@ EOF
   esac
 
   _tagVersion=$ver
+}
+
+doMergeAndPush() {
+  mergeType=$1
+  sourceBR=$2
+  targetBR=$3
+  echo -e "\n\033[0;34m===== $sourceBR $mergeType $targetBR start =====\033[0m\n"
+  git checkout $targetBR && git pull -r
+  git checkout $sourceBR && git fetch -p
+  if [ $(git branch -r | grep ${sourceBR}$) ]; then
+    git pull -r
+  fi
+  git $mergeType $targetBR
+  if [ $mergeType == "merge" ]; then
+    git push --set-upstream origin $sourceBR
+  else
+    git push --set-upstream origin $sourceBR --force-with-lease
+  fi
+  echo -e "\n\033[0;32m===== $sourceBR $mergeType $targetBR finish =====\033[0m\n"
 }
 
 doFinish() {
@@ -135,9 +135,9 @@ doSubmit() {
 
   prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
   if [ $prStat -eq 0 ]; then
-    gh pr create --title $title --body-file $logFile --base $targetBR --label "$label"
+    gh pr create --title "$title" --body-file "$logFile" --base "$targetBR" --label "$label"
   else
-    gh pr edit --body-file $logFile
+    gh pr edit --body-file "$logFile"
   fi
 }
 
