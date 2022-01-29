@@ -17,7 +17,7 @@ logFile="CHANGELOG.md"
 setChangelog() {
   preCommit=$1
   curCommit=$2
-  echo -e "## $_tagVersion ($(git show $curCommit -s --pretty=format:"%cd" --date=format:"%Y-%m-%d" | awk "END{print}"))\n" >$logFile
+  echo -e "## $curCommit ($(git show $curCommit -s --pretty=format:"%cd" --date=format:"%Y-%m-%d" | awk "END{print}"))\n" >$logFile
   logs=$(git log --pretty=format:"%s (%h)" $preCommit...$curCommit)
   if [ $(echo "$logs" | grep -Ec "^feat:") -gt 0 ]; then
     echo -e "\n### Features\n" >>$logFile
@@ -88,7 +88,7 @@ doFinish() {
     git tag $_tagVersion && git push origin $_tagVersion
     gh pr merge $sourceBR -md
     setChangelog $oldVersion $_tagVersion
-    gh release create $_tagVersion --title $_tagVersion --notes-file $logFile
+    gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
     doMergeAndPush rebase $releaseBR $deployBR
     doMergeAndPush rebase $developBR $releaseBR
     ;;
@@ -101,7 +101,7 @@ doFinish() {
     git tag $_tagVersion && git push origin $_tagVersion
     gh pr merge $sourceBR -r
     setChangelog $oldVersion $_tagVersion
-    gh release create $_tagVersion --title $_tagVersion --notes-file $logFile
+    gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
     doMergeAndPush rebase $developBR $releaseBR
     ;;
   esac
@@ -117,15 +117,15 @@ doSubmit() {
   doMergeAndPush rebase $sourceBR $targetBR
 
   case $type in
-  "DEPLOY")
+  "DEPLOY" | "UAT")
     _updateVersion $oldVersion minor
-    title="RELEASE: $_tagVersion"
-    setChangelog $oldVersion $_tagVersion
+    title="$type: $_tagVersion"
+    setChangelog $oldVersion HEAD
     ;;
   "hotfix")
     _updateVersion $oldVersion patch
     title="HOTFIX($_tagVersion): $sourceBR"
-    setChangelog $oldVersion $_tagVersion
+    setChangelog $oldVersion HEAD
     ;;
   *)
     title="$sourceBR to $targetBR"
