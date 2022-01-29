@@ -17,7 +17,12 @@ logFile="CHANGELOG.md"
 setChangelog() {
   preCommit=$1
   curCommit=$2
-  echo -e "## $curCommit ($(git show $curCommit -s --pretty=format:"%cd" --date=format:"%Y-%m-%d" | awk "END{print}"))\n" >$logFile
+  title=$2
+  if [ ${#3} -gt 0 ]; then
+    title=$3
+  fi
+
+  echo -e "## $title ($(git show $curCommit -s --pretty=format:"%cd" --date=format:"%Y-%m-%d" | awk "END{print}"))\n" >$logFile
   logs=$(git log --pretty=format:"%s (%h)" $preCommit...$curCommit)
   if [ $(echo "$logs" | grep -Ec "^feat:") -gt 0 ]; then
     echo -e "\n### Features\n" >>$logFile
@@ -85,8 +90,8 @@ doFinish() {
     ;;
   "hotfix")
     _updateVersion $oldVersion patch
-    git tag $_tagVersion && git push origin $_tagVersion
-    gh pr merge $sourceBR -md
+    gh pr merge $sourceBR -rd
+    git checkout $deployBR && git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion
     gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
     doMergeAndPush rebase $releaseBR $deployBR
@@ -98,8 +103,8 @@ doFinish() {
     ;;
   "DEPLOY")
     _updateVersion $oldVersion minor
-    git tag $_tagVersion && git push origin $_tagVersion
     gh pr merge $sourceBR -r
+    git checkout $deployBR && git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion
     gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
     doMergeAndPush rebase $developBR $releaseBR
@@ -120,19 +125,18 @@ doSubmit() {
   "DEPLOY" | "UAT")
     _updateVersion $oldVersion minor
     title="$type: $_tagVersion"
-    setChangelog $oldVersion HEAD
+    setChangelog $oldVersion HEAD $title
     ;;
   "hotfix")
     _updateVersion $oldVersion patch
     title="HOTFIX($_tagVersion): $sourceBR"
-    setChangelog $oldVersion HEAD
+    setChangelog $oldVersion HEAD $title
     ;;
   *)
     title="$sourceBR to $targetBR"
     git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M" >$logFile
     ;;
   esac
-
   prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
   if [ $prStat -eq 0 ]; then
     gh pr create --title "$title" --body-file "$logFile" --base "$targetBR" --label "$label"
