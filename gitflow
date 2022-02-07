@@ -20,16 +20,17 @@ gitUrl=${gitOriginUrl:0:-4}
 setChangelog() {
   preCommit=$1
   curCommit=$2
-  title=$2
+  title="## [$2]"
   if [ ${#3} -gt 0 ]; then
     title=$3
   fi
+
   curCommitInfo=$(git show $curCommit -s --pretty=format:"%cd %H" --date=format:"%Y-%m-%d" | awk "END{print}")
   if [ $curCommit == "HEAD" ]; then
     curCommit=$(echo $curCommitInfo | awk '{print $2}')
   fi
-  # TODO: title lvl
-  echo -e "## [$title]($gitUrl/compare/$preCommit...$curCommit) ($(echo $curCommitInfo | awk '{print $1}'))\n" >$logFile
+
+  echo -e "$title($gitUrl/compare/$preCommit...$curCommit) ($(echo $curCommitInfo | awk '{print $1}'))\n" >$logFile
 
   logType=('fix' 'feat' 'perf' 'revert')
   logTitle=('Bug Fixes' 'Features' 'Performance Improvementes' 'Reverts')
@@ -116,7 +117,7 @@ doFinish() {
     _updateVersion $oldVersion minor
     gh pr merge $sourceBR -r
     git checkout $deployBR && git tag $_tagVersion && git push origin $_tagVersion
-    setChangelog $oldVersion $_tagVersion
+    setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
     gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
     doMergeAndPush rebase $developBR $releaseBR
     ;;
@@ -136,12 +137,12 @@ doSubmit() {
   "DEPLOY" | "UAT")
     _updateVersion $oldVersion minor
     title="$type: $_tagVersion"
-    setChangelog $oldVersion HEAD $title
+    setChangelog $oldVersion HEAD "## [$title]"
     ;;
   "hotfix")
     _updateVersion $oldVersion patch
     title="HOTFIX($_tagVersion): $sourceBR"
-    setChangelog $oldVersion HEAD $title
+    setChangelog $oldVersion HEAD "## [$title]"
     ;;
   *)
     title="$sourceBR to $targetBR"
