@@ -28,20 +28,23 @@ setChangelog() {
   if [ $curCommit == "HEAD" ]; then
     curCommit=$(echo $curCommitInfo | awk '{print $2}')
   fi
+  # TODO: title lvl
+  echo -e "## [$title]($gitUrl/compare/$preCommit...$curCommit) ($(echo $curCommitInfo | awk '{print $1}'))\n" >$logFile
 
-  echo -e "# [$title]($gitUrl/compare/$preCommit...$curCommit) ($(echo $curCommitInfo | awk '{print $1}'))\n" >$logFile
-
+  logType=('fix' 'feat' 'perf' 'revert')
+  logTitle=('Bug Fixes' 'Features' 'Performance Improvementes' 'Reverts')
   logs=$(git log --pretty=format:"%s ([%h]($gitUrl/commits/%H))" $preCommit...$curCommit)
-  if [ $(echo "$logs" | grep -Ec "^feat:") -gt 0 ]; then
-    echo -e "\n### Features\n" >>$logFile
-    echo "$logs" | grep -E "^feat: " | sed "s/feat:/*/" >>$logFile
-    echo "$logs" | grep -E "^feat\(.+\): " | sort | sed "s/feat(\(.*\)):/* **\1:** /" >>$logFile
-  fi
-  if [ $(echo "$logs" | grep -Ec "^fix:") -gt 0 ]; then
-    echo -e "\n### Bug Fixes\n" >>$logFile
-    echo "$logs" | grep -E "^fix: " | sed "s/fix:/*/" >>$logFile
-    echo "$logs" | grep -E "^fix\(.+\): " | sort | sed "s/fix(\(.*\)):/* **\1:** /" >>$logFile
-  fi
+
+  i=1
+  while ((i <= ${#logType[*]})); do
+    type=${logType[$i - 1]}
+    if [ $(echo "$logs" | grep -Ec "^$type(\(.+\))?: ") -gt 0 ]; then
+      echo -e "\n### ${logTitle[$i - 1]}\n" >>$logFile
+      echo "$logs" | grep -E "^$type: " | sed "s/$type:/*/" >>$logFile
+      echo "$logs" | grep -E "^$type\(.+\): " | sort | sed "s/$type(\(.*\)):/* **\1:**/" >>$logFile
+    fi
+    let i++
+  done
 }
 
 # SIDE EFFECTS
