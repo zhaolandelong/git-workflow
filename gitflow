@@ -146,7 +146,7 @@ doSubmit() {
     ;;
   *)
     title="$sourceBR to $targetBR"
-    git log --pretty=format:"- %cd %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M" >$logFile
+    git log --pretty=format:"- %ad %h - %s" $sourceBR...$targetBR --date=format:"%m/%d %H:%M" >$logFile
     ;;
   esac
   prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
