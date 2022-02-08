@@ -15,6 +15,8 @@
 2. 复制 gitflow 到本地目录，并修改其权限
 ```bash
 curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow > gitflow && chmod +x ./gitflow
+# 将 CHANGELOG.md 加入到 .gitignore 中，防止多人提交产生冲突
+echo -e "\n# Git workflow log\nCHANGELOG.md" >> .gitignore
 ```
 3. 将以上所有变化提交 commit。打上相应版本 tag，把当前变化与 tag 都同步到远端。注意，该脚本会以最新的远端 tag 为基础更新版本号，版本号请**务必符合 [semver](https://semver.org/) 规范**。
 ```bash
@@ -29,7 +31,7 @@ git tag 1.0.0 && git push origin 1.0.0
 > 脚本会先执行 doCheck 方法来校验分支和 tag 的合法性，因为会读取 git 远程信息，所以会有一定的性能开销。如果已经按照步骤完成分支与 tag 的准备并通过 doCheck 的检查，则可手动注释掉 doCheck 的执行（脚本中搜索 NOTE 查看注释）。
 
 ## 用法
-运行 `./gitflow` 即可，会有可交互的提示。举例：
+在项目根目录运行 `./gitflow` 即可，会有可交互的提示。举例：
 
 ### Feature Start
 假如想开始一个 feature，运行 `./gitflow` 会看到
@@ -93,7 +95,7 @@ What's the method?
 2) submit
 3) finish
 ```
-直接进入选择 method 的选项，这时选 submit，会自动生成 PR，并填充 body。
+直接进入选择 method 的选项，这时选 submit，会自动生成 PR，并填充 body。如果 PR 还没有合并，再次执行 submit 操作会自动更新 PR 信息，并同步相应分支。
 
 ### Feature Finish
 运行步骤没有什么特别，但是要注意，使用此命令的人是否有对应 target 分支的合并权限，具体请见 [Gitflow 太繁琐？为什么不自动化呢](https://juejin.cn/post/7056410651563917326) 中的表格。
