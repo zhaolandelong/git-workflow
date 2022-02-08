@@ -1,7 +1,7 @@
 # git-workflow
 
 ## 介绍
-参考 Gitflow、GitHub Flow、GitLab Flow 实现的一套 Git Workflow 规范，并用脚本实现了可交互半自动化。目前只支持用 GitHub 做代码管理的项目（因为有命令行工具 [gh](https://cli.github.com/)）。可实现的功能有：
+参考 Gitflow、GitHub Flow、GitLab Flow 实现的一套 Git Workflow 规范，并用脚本实现了可交互半自动化。目前只支持用 GitHub 做代码管理的项目（因为有命令行工具 [gh](https://cli.github.com/)）。用 `bash` 实现，**适用于任何语言的项目**。可实现的功能有：
 - 自动创建符合规范的分支；
 - 自动创建 PR，并提取 commit list 作为 body 内容，让每个 PR 都具有的优雅的可读性；
 - PR 合并之后，自动删除本地和远程的分支，并自动做功能分支的同步；
@@ -12,33 +12,21 @@
 ## 准备
 
 1. 安装 [gh](https://cli.github.com/)，并执行 `gh auth login` 登录，推荐使用浏览器模式授权，安装方法见官网；
-2. 安装 [conventional-changelog](https://github.com/conventional-changelog/conventional-changelog) 并初始化，命令如下：
+2. 复制 gitflow 到本地目录，并修改其权限
 ```bash
-# 1. 安装 conventional-changelog-cli
-npm i -D conventional-changelog-cli
-
-# 2. 在 .npmrc 中增加配置，统一 tag 的表现
-echo -e "\ntag-version-prefix=\"\"\nmessage=\"chore(release): %s :tada:\"" >> .npmrc
-
-# 3. 将 CHANGELOG.md 加入到 .gitignore 中，防止多人提交产生冲突
-echo -e "\n# Git workflow log\nCHANGELOG.md" >> .gitignore
-
-# 4. 在 package.json 中增加 version 命令，触发 npm version 的 hook
-# 注：npm 版本在 v7.x 以下需要手动修改 package.json
-npm set-script version "conventional-changelog -p angular -o CHANGELOG.md"
-
-# 5. 复制 gitflow 到本地目录，并修改其权限
 curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow > gitflow && chmod +x ./gitflow
 ```
-
-3. 切好 master、release、develop 3 个功能分支，并推到远端。名字可以变，只要功能对应上即可，**但要记得手动修改脚本中的变量**；
-
-4. 修改 package.json 的 version 至合理版本，将以上所有变化提交 commit。打上相应版本 tag，把当前变化与 tag 都同步到远端。
+3. 将以上所有变化提交 commit。打上相应版本 tag，把当前变化与 tag 都同步到远端。注意，该脚本会以最新的远端 tag 为基础更新版本号，版本号请**务必符合 [semver](https://semver.org/) 规范**。
 ```bash
 git add . && git commit -m 'chore: gitflow init' && git push
 
-git tag x.x.x && git push origin x.x.x
+git tag 1.0.0 && git push origin 1.0.0
 ```
+4. 切好 master、release、develop 3 个功能分支，并推到远端。注意，名字可以变，只要功能对应上即可，**但要记得手动修改脚本中的变量**；
+
+> **注意**
+> 
+> 脚本会先执行 doCheck 方法来校验分支和 tag 的合法性，因为会读取 git 远程信息，所以会有一定的性能开销。如果已经按照步骤完成分支与 tag 的准备并通过 doCheck 的检查，则可手动注释掉 doCheck 的执行（脚本中搜索 NOTE 查看注释）。
 
 ## 用法
 运行 `./gitflow` 即可，会有可交互的提示。举例：

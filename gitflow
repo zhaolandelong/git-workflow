@@ -290,6 +290,7 @@ main() {
   doWorkflow $type $method $branch
 }
 
+# NOTE: If you don't want check branch and tag, comment the following line.
 doCheck
 
 _tagVersion=$(git ls-remote --tags origin | awk "{print \$2}" | sort -t "." -k1,1n -k2,2n -k3,3n | awk "/\^\{\}/{}END{print}" | sed "s/.*\/\([0-9\.]*\).*/\1/g")
