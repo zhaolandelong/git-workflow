@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-08 18:43:28
+ # @LastEditTime: 2022-02-09 14:10:42
 ###
 # version: 1.3.0
 # Dependencies:
@@ -120,7 +120,7 @@ doFinish() {
   "DEPLOY")
     _updateVersion $oldVersion minor
     gh pr merge $sourceBR -r
-    git checkout $deployBR && git tag $_tagVersion && git push origin $_tagVersion
+    git checkout $deployBR && git pull -r && git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
     gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
     doMergeAndPush rebase $developBR $releaseBR
@@ -221,6 +221,7 @@ doCheck() {
     echo -e "\n\033[0;31mPlease create a SEMVER tag and push it to origin first.\neg: 1.0.0, 0.0.0\033[0m\n"
     exit
   fi
+  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can comment the [doCheck] function (near line 300) to skip check.\033[0m"
 }
 
 main() {
@@ -282,15 +283,14 @@ main() {
   if [ ${#method} -eq 0 ]; then
     echo "What's the method?"
     echo "- start: Start a work and create a new branch"
-    echo "- submit: Submit a PR"
-    echo "- finish: Merge the PR after CR and delete branch"
+    echo "- submit: Create or Update a PR"
+    echo "- finish: Merge the PR, delete the branch and rebase to sync branch"
     select method in "start" "submit" "finish"; do
       echo "- Method: $method"
       break
     done
   fi
 
-  # Do workflow
   doWorkflow $type $method $branch
 }
 
@@ -298,5 +298,6 @@ main() {
 doCheck
 
 _tagVersion=$(git ls-remote --tags origin | awk "{print \$2}" | sort -t "." -k1,1n -k2,2n -k3,3n | awk "END{print}" | sed "s/.*\/\([0-9\.]*\).*/\1/g")
+echo -e "\033[1;32mlatest\033[0m: $_tagVersion"
 
-main $1 $2 $3
+# main $1 $2 $3
