@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-09 14:10:42
+ # @LastEditTime: 2022-02-09 14:48:39
 ###
 # version: 1.3.0
 # Dependencies:
@@ -72,16 +72,21 @@ EOF
   _tagVersion=$tag
 }
 
+gitCoAndPull() {
+  git fetch -p
+  git checkout $1
+  if [ $(git branch -r | grep -wc "origin/$1") -gt 0 ]; then
+    git pull -r origin $1
+  fi
+}
+
 doMergeAndPush() {
   mergeType=$1
   sourceBR=$2
   targetBR=$3
   echo -e "\n\033[0;34m===== $sourceBR $mergeType $targetBR start =====\033[0m\n"
-  git checkout $targetBR && git pull -r
-  git checkout $sourceBR && git fetch -p
-  if [ $(git branch -r | grep ${sourceBR}$) ]; then
-    git pull -r
-  fi
+  gitCoAndPull $targetBR
+  gitCoAndPull $sourceBR
   git $mergeType $targetBR
   if [ $mergeType == "merge" ]; then
     git push --set-upstream origin $sourceBR
@@ -107,7 +112,8 @@ doFinish() {
   "hotfix")
     _updateVersion $oldVersion patch
     gh pr merge $sourceBR -rd
-    git checkout $deployBR && git pull -r && git tag $_tagVersion && git push origin $_tagVersion
+    gitCoAndPull $deployBR
+    git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion
     gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
     doMergeAndPush rebase $releaseBR $deployBR
@@ -120,7 +126,8 @@ doFinish() {
   "DEPLOY")
     _updateVersion $oldVersion minor
     gh pr merge $sourceBR -r
-    git checkout $deployBR && git pull -r && git tag $_tagVersion && git push origin $_tagVersion
+    gitCoAndPull $deployBR
+    git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
     gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
     doMergeAndPush rebase $developBR $releaseBR
@@ -196,8 +203,7 @@ doWorkflow() {
       echo "UAT and DEPOLY can't start"
       exit
     fi
-    git checkout $targetBR
-    git pull -r
+    gitCoAndPull $targetBR
     git checkout -b $sourceBR
     ;;
   "submit")
@@ -300,4 +306,4 @@ doCheck
 _tagVersion=$(git ls-remote --tags origin | awk "{print \$2}" | sort -t "." -k1,1n -k2,2n -k3,3n | awk "END{print}" | sed "s/.*\/\([0-9\.]*\).*/\1/g")
 echo -e "\033[1;32mlatest\033[0m: $_tagVersion"
 
-# main $1 $2 $3
+main $1 $2 $3
