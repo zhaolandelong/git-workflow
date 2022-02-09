@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
 # @LastEditors: zhaolandelong
-# @LastEditTime: 2022-02-09 15:00:24
+# @LastEditTime: 2022-02-09 15:18:13
 ###
 # version: 1.3.0
 # Dependencies:
@@ -16,6 +16,11 @@ set -e
 deployBR="master"
 releaseBR="release"
 developBR="develop"
+
+featPrefix="feature"
+bugPrefix="bugfix"
+hotPrefix="hotfix"
+
 logFile="CHANGELOG.md"
 
 gitOriginUrl=$(grep -E "^\s+url = .+\.git$" .git/config | awk "{print \$3}")
@@ -97,14 +102,14 @@ doFinish() {
   oldVersion=$_tagVersion
 
   case $type in
-  "feature")
+  $featPrefix)
     gh pr merge $sourceBR -rd
     ;;
-  "bugfix")
+  $bugPrefix)
     gh pr merge $sourceBR -rd
     doRebaseAndPush $developBR $releaseBR
     ;;
-  "hotfix")
+  $hotPrefix)
     _updateVersion $oldVersion patch
     gh pr merge $sourceBR -rd
     gitCoAndPull $deployBR
@@ -145,7 +150,7 @@ doSubmit() {
     title="$type: $_tagVersion"
     setChangelog $oldVersion HEAD "## [$title]"
     ;;
-  "hotfix")
+  $hotPrefix)
     _updateVersion $oldVersion patch
     title="HOTFIX($_tagVersion): $sourceBR"
     setChangelog $oldVersion HEAD "## [$title]"
@@ -172,15 +177,15 @@ doWorkflow() {
   label=""
 
   case $type in
-  "feature")
+  $featPrefix)
     targetBR=$developBR
     label="enhancement"
     ;;
-  "bugfix")
+  $bugPrefix)
     targetBR=$releaseBR
     label="invalid"
     ;;
-  "hotfix")
+  $hotPrefix)
     targetBR=$deployBR
     label="bug"
     ;;
@@ -211,10 +216,14 @@ doWorkflow() {
 }
 
 doCheck() {
-  git fetch -p
   # branch check
+  git fetch -p
   if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($deployBR|$releaseBR|$developBR)") -ne 3 ]; then
     echo -e "\n\033[0;31mPlease create [$deployBR, $releaseBR, $developBR] branches and push them to origin first.\033[0m\n"
+    exit
+  fi
+  if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($featPrefix|$bugPrefix|$hotPrefix)$") -gt 0 ]; then
+    echo -e "\n\033[0;31mThere can't be branch named [$featPrefix, $bugPrefix, $hotPrefix], please delete them or change the [Prefix VAR] in the gitflow script.\033[0m\n"
     exit
   fi
   # tag check
@@ -254,7 +263,7 @@ main() {
   # Fill $type
   if [ ${#type} -eq 0 ]; then
     echo "What's the type? (Notice: Admin Permission needed with UAT and DEPLOY)"
-    select type in "feature" "bugfix" "hotfix" "UAT" "DEPLOY"; do
+    select type in $featPrefix $bugPrefix $hotPrefix "UAT" "DEPLOY"; do
       echo "- Type: $type"
       break
     done
