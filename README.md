@@ -30,6 +30,15 @@ git tag 1.0.0 && git push origin 1.0.0
 > 
 > 脚本会先执行 doCheck 方法来校验分支和 tag 的合法性，因为会读取 git 远程信息，所以会有一定的性能开销。如果已经按照步骤完成分支与 tag 的准备并通过 doCheck 的检查，则可手动注释掉 doCheck 的执行（脚本中搜索 NOTE 查看注释）。
 
+## 更新
+
+在项目根目录下运行下列命令即可。
+
+> **注意**：如果修改过变量，记得再次修改，后续会优化这个问题。
+```bash
+curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow > gitflow
+```
+
 ## 用法
 在项目根目录运行 `./gitflow` 即可，会有可交互的提示。举例：
 
