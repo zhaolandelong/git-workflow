@@ -1,0 +1,101 @@
+#!/bin/bash
+###
+# @Author: zhaolandelong
+# @Date: 2022-02-09 18:00:49
+ # @LastEditors: zhaolandelong
+ # @LastEditTime: 2022-02-10 13:23:45
+###
+# version: 1.1.0
+
+set -e
+
+echo "Installing..."
+fileName="gitflow"
+
+doCheckVersion() {
+  latest=$(curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow | grep -E "# version:" | sed "s/# version: \(.*\)/\1/")
+  echo -e "\033[1;32mlatest\033[0m: $latest"
+
+  if [ -e ./$fileName ]; then
+    local=$(grep -E "# version:" $fileName | sed "s/# version: \(.*\)/\1/")
+    echo -e "\033[0;32mlocal\033[0m: $local"
+    if [ $latest == $local ]; then
+      echo -e "\033[0;32mVersion is already latest!\033[0m"
+      exit
+    fi
+  fi
+}
+
+main() {
+  echo "Would you like to use the current config?"
+  if [ -e ./$fileName ]; then
+    # update
+    for var in ${varList[*]}; do
+      eval "$var=\$(grep \"$var=\" $fileName | sed \"s/$var=\\\"\(.*\)\\\"/\1/\")"
+    done
+  else
+    # install
+    i=1
+    while ((i <= ${#varList[*]})); do
+      eval "${varList[$i - 1]}=${defaults[$i - 1]}"
+      let i++
+    done
+  fi
+  for var in ${varList[*]}; do
+    eval "echo -e \"- $var: \033[0;33m\$$var\033[0m\""
+  done
+  select confirm in "Yes" "No"; do
+    if [ $confirm == "No" ]; then
+      for var in ${varList[*]}; do
+        eval "initVal=\$$var"
+        echo -e "Input the value of \033[1;34m$var\033[0m(Press ENTER to use \033[0;33m$initVal\033[0m):"
+        eval "read $var"
+        eval "temp=\$$var"
+        if [ ${#temp} -eq 0 ]; then
+          eval "$var=$initVal"
+        fi
+        eval "echo -e \"- $var: \$$var\""
+      done
+      echo "Are you sure to use this config?"
+      for var in ${varList[*]}; do
+        eval "echo -e \"- $var: \033[0;33m\$$var\033[0m\""
+      done
+      echo "Press ENTER to ensure"
+      read confirm
+      if [ ${#confirm} -ne 0 ]; then
+        exit
+      fi
+    fi
+    break
+  done
+
+  curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow >$fileName && chmod +x ./$fileName
+
+  for var in ${varList[*]}; do
+    eval "sed -i \"s/%%$var%%/\$$var/g\" $fileName"
+  done
+
+  i=1
+  while ((i <= ${#varList[*]})); do
+    eval "sed -i \"s/\\\"${defaults[$i - 1]}\\\"/\\\"\$${varList[$i - 1]}\\\"/g\" $fileName"
+    let i++
+  done
+
+  if [ ${#logFile} -gt 0 ]; then
+    if [ -e ./.gitignore -a $(grep -wc $logFile .gitignore) -eq 0 ]; then
+      echo -e "\n# Git workflow log\n$logFile" >>.gitignore
+    fi
+  fi
+}
+
+doCheckVersion
+
+constFile="gitflow-constants"
+if [ ! -e $constFile ]; then
+  curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/$constFile >$constFile
+fi
+source $constFile
+
+main
+
+rm install-gitflow $constFile
