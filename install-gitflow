@@ -2,8 +2,8 @@
 ###
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
- # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-10 16:19:14
+# @LastEditors: zhaolandelong
+# @LastEditTime: 2022-02-10 16:38:05
 ###
 # version: 1.4.1
 
@@ -24,7 +24,11 @@ done
 
 doInstall() {
   echo "Would you like to use the current config?"
+  hasSkipCheck=0
   if [ $1 == "update" ]; then
+    if [ $(grep -Ec "# ?+doCheck" $fileName) -ne 0 ]; then
+      hasSkipCheck=1
+    fi
     for var in ${varList[*]}; do
       eval "$var=\$(grep \"$var=\" $fileName | sed \"s/$var=\\\"\(.*\)\\\"/\1/\")"
     done
@@ -68,6 +72,11 @@ doInstall() {
     eval "sed -i \"s/\\\"${defaults[$i - 1]}\\\"/\\\"\$${varList[$i - 1]}\\\"/g\" $fileName"
     let i++
   done
+
+  if [ $hasSkipCheck -eq 1 ]; then
+    sed -i "s/^doCheck$/# doCheck/" $fileName
+  fi
+
   git add $fileName
 
   if [ ${#logFile} -gt 0 ]; then
