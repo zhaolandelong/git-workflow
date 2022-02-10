@@ -2,8 +2,8 @@
 ###
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
-# @LastEditors: zhaolandelong
-# @LastEditTime: 2022-02-10 14:09:00
+ # @LastEditors: zhaolandelong
+ # @LastEditTime: 2022-02-10 15:24:35
 ###
 # version: 1.1.0
 
@@ -103,6 +103,29 @@ doCheckTag() {
   fi
 }
 
+doCheckBranch() {
+  git fetch -p
+  currentBranch=$(git rev-parse --abbrev-ref HEAD)
+  originBrs=$(git branch -r | grep -v "HEAD")
+  for br in $deployBR $releaseBR $developBR; do
+    if [ $(echo -e "$originBrs" | grep -Ewc " origin/$br") -eq 0 ]; then
+      echo -e "There is no origin branch \033[1;34m$br\033[0m yet, do you want to create it now(base \033[0;33m$currentBranch\033[0m)?"
+      select confirm in "Yes" "No"; do
+        if [ $confirm == "Yes" ]; then
+          if [ $(git branch | grep -Ewc " $br") -eq 0 ]; then
+            git push origin HEAD:$br
+          else
+            git checkout $br
+            git push --set-upstream origin $br
+            git checkout $currentBranch
+          fi
+        fi
+        break
+      done
+    fi
+  done
+}
+
 main() {
   doCheckVersion
 
@@ -115,6 +138,8 @@ main() {
   doInstall
 
   doCheckTag
+
+  doCheckBranch
 
   rm install-gitflow $constFile
 }
