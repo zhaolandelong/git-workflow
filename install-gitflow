@@ -2,8 +2,8 @@
 ###
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
- # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-10 13:23:45
+# @LastEditors: zhaolandelong
+# @LastEditTime: 2022-02-10 13:30:50
 ###
 # version: 1.1.0
 
@@ -11,11 +11,10 @@ set -e
 
 echo "Installing..."
 fileName="gitflow"
+latest=$(curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow | grep -E "# version:" | sed "s/# version: \(.*\)/\1/")
+echo -e "\033[1;32mlatest\033[0m: $latest"
 
 doCheckVersion() {
-  latest=$(curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow | grep -E "# version:" | sed "s/# version: \(.*\)/\1/")
-  echo -e "\033[1;32mlatest\033[0m: $latest"
-
   if [ -e ./$fileName ]; then
     local=$(grep -E "# version:" $fileName | sed "s/# version: \(.*\)/\1/")
     echo -e "\033[0;32mlocal\033[0m: $local"
@@ -80,12 +79,15 @@ main() {
     eval "sed -i \"s/\\\"${defaults[$i - 1]}\\\"/\\\"\$${varList[$i - 1]}\\\"/g\" $fileName"
     let i++
   done
+  git add $fileName
 
   if [ ${#logFile} -gt 0 ]; then
     if [ -e ./.gitignore -a $(grep -wc $logFile .gitignore) -eq 0 ]; then
       echo -e "\n# Git workflow log\n$logFile" >>.gitignore
+      git add .gitignore
     fi
   fi
+  git commit -m "chore(gitflow): install gitflow $latest :tada:"
 }
 
 doCheckVersion
