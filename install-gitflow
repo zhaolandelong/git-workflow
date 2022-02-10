@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
 # @LastEditors: zhaolandelong
-# @LastEditTime: 2022-02-10 13:30:50
+# @LastEditTime: 2022-02-10 14:09:00
 ###
 # version: 1.1.0
 
@@ -25,7 +25,7 @@ doCheckVersion() {
   fi
 }
 
-main() {
+doInstall() {
   echo "Would you like to use the current config?"
   if [ -e ./$fileName ]; then
     # update
@@ -90,14 +90,33 @@ main() {
   git commit -m "chore(gitflow): install gitflow $latest :tada:"
 }
 
-doCheckVersion
+doCheckTag() {
+  if [ $(git ls-remote --tags origin | awk '{print $2}' | grep -Ec "^refs/tags/[0-9]+\.[0-9]+\.[0-9]+(\^\{\})?$") -eq 0 ]; then
+    echo -e "There is no tag meet SEMVER, please input one."
+    echo -e " NOTICE:\n If your input matches SEMVER， then we will TAG and PUSH it to the origin.\n If NOT match, this step will be skiped."
+    echo "Input a version(eg: 1.0.0):"
+    read ver
+    if [ $(echo $ver | grep -Ewc "[0-9]+\.[0-9]+\.[0-9]+") -ne 0 ]; then
+      git tag $ver
+      git push origin $ver
+    fi
+  fi
+}
 
-constFile="gitflow-constants"
-if [ ! -e $constFile ]; then
-  curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/$constFile >$constFile
-fi
-source $constFile
+main() {
+  doCheckVersion
+
+  constFile="gitflow-constants"
+  if [ ! -e $constFile ]; then
+    curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/$constFile >$constFile
+  fi
+  source $constFile
+
+  doInstall
+
+  doCheckTag
+
+  rm install-gitflow $constFile
+}
 
 main
-
-rm install-gitflow $constFile
