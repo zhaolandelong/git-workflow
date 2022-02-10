@@ -15,9 +15,7 @@
 2. 运行下列命令进行安装/升级
 ```bash
 curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \
-chmod +x ./install-gitflow && \
-./install-gitflow && \
-rm ./install-gitflow
+chmod +x ./install-gitflow && ./install-gitflow && rm ./install-gitflow
 ```
 3. 如果顺利的按引导完成了安装、打版本号、切功能分支，那么就可以开始使用了，否则还需要手动补上缺失的步骤。
 
