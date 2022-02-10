@@ -3,41 +3,30 @@
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-10 15:24:35
+ # @LastEditTime: 2022-02-10 16:19:14
 ###
-# version: 1.1.0
+# version: 1.4.1
 
 set -e
-
 echo "Installing..."
-fileName="gitflow"
+
 latest=$(curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow | grep -E "# version:" | sed "s/# version: \(.*\)/\1/")
 echo -e "\033[1;32mlatest\033[0m: $latest"
 
-doCheckVersion() {
-  if [ -e ./$fileName ]; then
-    local=$(grep -E "# version:" $fileName | sed "s/# version: \(.*\)/\1/")
-    echo -e "\033[0;32mlocal\033[0m: $local"
-    if [ $latest == $local ]; then
-      echo -e "\033[0;32mVersion is already latest!\033[0m"
-      exit
-    fi
-  fi
-}
+fileName="gitflow"
+varList=('deployBR' 'releaseBR' 'developBR' 'logFile' 'featPrefix' 'bugPrefix' 'hotPrefix')
+defaults=('master' 'release' 'develop' 'CHANGELOG.md' 'feature' 'bugfix' 'hotfix')
+i=1
+while ((i <= ${#varList[*]})); do
+  eval "${varList[$i - 1]}=${defaults[$i - 1]}"
+  let i++
+done
 
 doInstall() {
   echo "Would you like to use the current config?"
-  if [ -e ./$fileName ]; then
-    # update
+  if [ $1 == "update" ]; then
     for var in ${varList[*]}; do
       eval "$var=\$(grep \"$var=\" $fileName | sed \"s/$var=\\\"\(.*\)\\\"/\1/\")"
-    done
-  else
-    # install
-    i=1
-    while ((i <= ${#varList[*]})); do
-      eval "${varList[$i - 1]}=${defaults[$i - 1]}"
-      let i++
     done
   fi
   for var in ${varList[*]}; do
@@ -127,21 +116,21 @@ doCheckBranch() {
 }
 
 main() {
-  doCheckVersion
-
-  constFile="gitflow-constants"
-  if [ ! -e $constFile ]; then
-    curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/$constFile >$constFile
+  if [ -e ./$fileName ]; then
+    local=$(grep -E "# version:" $fileName | sed "s/# version: \(.*\)/\1/")
+    echo -e "\033[0;32mlocal\033[0m: $local"
+    if [ $latest == $local ]; then
+      echo -e "\033[0;32mVersion is already latest!\033[0m"
+    else
+      doInstall update
+    fi
+  else
+    doInstall install
   fi
-  source $constFile
-
-  doInstall
 
   doCheckTag
 
   doCheckBranch
-
-  rm install-gitflow $constFile
 }
 
 main
