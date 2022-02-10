@@ -26,7 +26,9 @@ rm ./install-gitflow
 > 该脚本会以最新的远端 tag 为基础更新版本号，版本号请**务必符合 [semver](https://semver.org/) 规范**。
 
 ## 使用
-在项目根目录运行 `./gitflow` 即可，会有可交互的提示。举例：
+正常的流转步骤为： feature => UAT => bugfix => DEPLOY 或直接 hotfix。
+
+在项目根目录运行 `./gitflow` 就会有可交互的提示。演示如下：
 ### Feature Start
 假如想开始一个 feature，运行 `./gitflow` 会看到
 ```
