@@ -1,0 +1,3 @@
+#!/bin/bash
+varList=('deployBR' 'releaseBR' 'developBR' 'logFile' 'featPrefix' 'bugPrefix' 'hotPrefix')
+defaults=('master' 'release' 'develop' 'CHANGELOG.md' 'feature' 'bugfix' 'hotfix')
