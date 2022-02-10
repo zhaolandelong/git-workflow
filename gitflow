@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-10 16:37:51
+ # @LastEditTime: 2022-02-10 18:06:08
 ###
 # version: 1.4.1
 # Dependencies:
@@ -25,6 +25,34 @@ logFile="CHANGELOG.md"
 
 gitOriginUrl=$(grep -E "^\s+url = .+\.git$" .git/config | awk "{print \$3}")
 gitUrl=${gitOriginUrl:0:-4}
+
+doAdvertising() {
+  echo -e "\nWelcome to use gitflow script! It will bring you convenience and orderly!"
+  echo -e "If you want \033[1;35mUPDATE\033[0m the script, just use the commond below:"
+  echo "================================================================"
+  echo -e "\033[0;36mcurl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \\ \nchmod +x ./install-gitflow && ./install-gitflow && rm ./install-gitflow\033[0m"
+  echo "================================================================"
+  echo -e "Click \033[0;35mhttps://github.com/zhaolandelong/git-workflow\033[0m to see more.\n"
+}
+
+doCheck() {
+  # branch check
+  git fetch -p
+  if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($deployBR|$releaseBR|$developBR)") -ne 3 ]; then
+    echo -e "\n\033[0;31mPlease create [$deployBR, $releaseBR, $developBR] branches and push them to origin first.\033[0m\n"
+    exit
+  fi
+  if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($featPrefix|$bugPrefix|$hotPrefix)$") -gt 0 ]; then
+    echo -e "\n\033[0;31mThere can't be branch named [$featPrefix, $bugPrefix, $hotPrefix], please delete them or change the [Prefix VAR] in the gitflow script.\033[0m\n"
+    exit
+  fi
+  # tag check
+  if [ $(git ls-remote --tags origin | awk '{print $2}' | grep -Ec "^refs/tags/[0-9]+\.[0-9]+\.[0-9]+(\^\{\})?$") -eq 0 ]; then
+    echo -e "\n\033[0;31mPlease create a SEMVER tag and push it to origin first.\neg: 1.0.0, 0.0.0\033[0m\n"
+    exit
+  fi
+  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can comment the [doCheck] function (near line 300) to skip check.\033[0m"
+}
 
 setChangelog() {
   preCommit=$1
@@ -219,25 +247,6 @@ doWorkflow() {
   esac
 }
 
-doCheck() {
-  # branch check
-  git fetch -p
-  if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($deployBR|$releaseBR|$developBR)") -ne 3 ]; then
-    echo -e "\n\033[0;31mPlease create [$deployBR, $releaseBR, $developBR] branches and push them to origin first.\033[0m\n"
-    exit
-  fi
-  if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($featPrefix|$bugPrefix|$hotPrefix)$") -gt 0 ]; then
-    echo -e "\n\033[0;31mThere can't be branch named [$featPrefix, $bugPrefix, $hotPrefix], please delete them or change the [Prefix VAR] in the gitflow script.\033[0m\n"
-    exit
-  fi
-  # tag check
-  if [ $(git ls-remote --tags origin | awk '{print $2}' | grep -Ec "^refs/tags/[0-9]+\.[0-9]+\.[0-9]+(\^\{\})?$") -eq 0 ]; then
-    echo -e "\n\033[0;31mPlease create a SEMVER tag and push it to origin first.\neg: 1.0.0, 0.0.0\033[0m\n"
-    exit
-  fi
-  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can comment the [doCheck] function (near line 300) to skip check.\033[0m"
-}
-
 main() {
   type=$1
   name=$2
@@ -308,6 +317,7 @@ main() {
   doWorkflow $type $method $branch
 }
 
+doAdvertising
 # NOTE: If you don't want check branch and tag, comment the following line.
 doCheck
 
