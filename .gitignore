@@ -27,3 +27,4 @@ pnpm-debug.log*
 
 # Git workflow log
 CHANGELOG.md
+.gitlab-config
