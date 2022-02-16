@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-16 20:22:45
+ # @LastEditTime: 2022-02-16 21:01:44
 ###
 # version: 1.4.1
 
@@ -87,7 +87,7 @@ doInstall() {
 
   if [ ${#logFile} -gt 0 ]; then
     if [ -e ./.gitignore -a $(grep -wc $logFile .gitignore) -eq 0 ]; then
-      echo -e "\n# Git workflow log\n$logFile" >>.gitignore
+      echo -e "\n# Git workflow log\n$logFile\n.gitlab-config" >>.gitignore
       git add .gitignore
     fi
   fi
