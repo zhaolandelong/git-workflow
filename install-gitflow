@@ -2,8 +2,8 @@
 ###
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
-# @LastEditors: zhaolandelong
-# @LastEditTime: 2022-02-10 16:38:05
+ # @LastEditors: zhaolandelong
+ # @LastEditTime: 2022-02-15 18:19:06
 ###
 # version: 1.4.1
 
@@ -61,7 +61,7 @@ doInstall() {
     break
   done
 
-  curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow >$fileName && chmod +x ./$fileName
+  curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow-github >$fileName && chmod +x ./$fileName
 
   for var in ${varList[*]}; do
     eval "sed -i \"s/%%$var%%/\$$var/g\" $fileName"
