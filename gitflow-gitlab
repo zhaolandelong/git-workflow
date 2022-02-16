@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-16 21:26:34
+ # @LastEditTime: 2022-02-16 21:56:25
 ###
 # version: 1.0.0
 # Dependencies:
@@ -29,7 +29,7 @@ gitUrl=${gitOriginUrl:0:-4}
 
 # TODO: optimize
 source .gitlab-config # token
-projectId="15022"
+projectId="Your Project ID here"
 apiDomain=$(echo $gitOriginUrl | sed 's/\(https\{0,1\}:\/\/[^\/]*\)\/.*/\1/')
 apiHost="$apiDomain/api/v4/projects/$projectId/merge_requests"
 mrId=$(curl -s "$apiHost?state=opened&source_branch=$currentBranch" | sed 's/,/\n/g' | grep "iid" | sed -n '1p' | sed 's/:/ /g' | awk '{print $2}')
