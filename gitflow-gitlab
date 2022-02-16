@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-16 20:51:57
+ # @LastEditTime: 2022-02-16 21:26:34
 ###
 # version: 1.0.0
 # Dependencies:
@@ -147,7 +147,7 @@ doFinish() {
     cli --request PUT -d should_remove_source_branch=false "$apiHost/$mrId/merge"
     gitCoAndPull $deployBR
     git tag $_tagVersion && git push origin $_tagVersion
-    setChangelog $oldVersion $_tagVersion "# $_tagVersion"
+    setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
     doReleaseAndSync
     ;;
   esac
@@ -167,12 +167,12 @@ doSubmit() {
   "DEPLOY" | "UAT")
     _updateVersion $oldVersion minor
     title="$type: $_tagVersion"
-    setChangelog $oldVersion HEAD "## $title"
+    setChangelog $oldVersion HEAD "## [$title]"
     ;;
   $hotPrefix)
     _updateVersion $oldVersion patch
     title="HOTFIX($_tagVersion): $sourceBR"
-    setChangelog $oldVersion HEAD "## $title"
+    setChangelog $oldVersion HEAD "## [$title]"
     ;;
   *)
     title="$sourceBR to $targetBR"
