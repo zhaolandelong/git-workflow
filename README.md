@@ -11,17 +11,28 @@
 
 ## 安装/更新
 
-1. 安装 [gh](https://cli.github.com/)，并执行 `gh auth login` 登录，推荐使用浏览器模式授权，安装方法见官网；
+### GitHub 版
+1. 进入项目根目录，以下操作均在此目录下进行；
+2. 安装 [gh](https://cli.github.com/)，并执行 `gh auth login` 登录，推荐使用浏览器模式授权，安装方法见官网；
+3. 运行下列命令进行安装/升级
+```bash
+curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \
+chmod +x ./install-gitflow && install-gitflow github && ./install-gitflow
+```
+
+### Gitlab 版
+1. 进入项目根目录，以下操作均在此目录下进行；
 2. 运行下列命令进行安装/升级
 ```bash
 curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \
-chmod +x ./install-gitflow && ./install-gitflow && rm ./install-gitflow
+echo -e "token=\"your token here\"" >.gitlab-config && \
+chmod +x ./install-gitflow && install-gitflow gitlab && rm ./install-gitflow
 ```
-3. 如果顺利的按引导完成了安装、打版本号、切功能分支，那么就可以开始使用了，否则还需要手动补上缺失的步骤。
+3. 生成自己的 `Access Token`，修改 `.gitlab-config` 中的 `token` 变量。生成 token 的方法见 [官网文档](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#create-a-personal-access-token)
 
 > **注意**
-> 
-> 该脚本会以最新的远端 tag 为基础更新版本号，版本号请**务必符合 [semver](https://semver.org/) 规范**。
+> - 如果顺利的按引导完成了安装、打版本号、切功能分支，那么就可以开始使用了，否则还需要手动补上缺失的步骤。
+> - 该脚本会以最新的远端 tag 为基础更新版本号，版本号请**务必符合 [semver](https://semver.org/) 规范**。
 
 ## 使用
 正常的流转步骤为： feature => UAT => bugfix => DEPLOY 或直接 hotfix。
