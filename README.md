@@ -11,6 +11,7 @@
 
 ## 安装/更新
 
+**注：** 目前 Github 版合并全部用的 rebase，但是 Gitlab 版合并 MR 时用的 merge（Gitlab 默认状态下的唯一方式），分支同步用的 rebase，这一点在充分收集实践经验后会进行最后确认。
 ### GitHub 版
 1. 进入项目根目录，以下操作均在此目录下进行；
 2. 安装 [gh](https://cli.github.com/)，并执行 `gh auth login` 登录，推荐使用浏览器模式授权，安装方法见官网；
