@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-17 09:31:54
+ # @LastEditTime: 2022-02-17 16:10:09
 ###
 # version: 1.4.2
 # Dependencies:
@@ -51,7 +51,7 @@ doCheck() {
     echo -e "\n\033[0;31mPlease create a SEMVER tag and push it to origin first.\neg: 1.0.0, 0.0.0\033[0m\n"
     exit
   fi
-  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can comment the [doCheck] function (near line 300) to skip check.\033[0m"
+  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can comment the [doCheck] function (near line 320) to skip check.\033[0m"
 }
 
 setChangelog() {
