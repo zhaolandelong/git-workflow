@@ -3,9 +3,9 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-10 18:06:08
+ # @LastEditTime: 2022-02-17 09:31:54
 ###
-# version: 1.4.1
+# version: 1.4.2
 # Dependencies:
 # - git
 # - gh(https://cli.github.com/)
@@ -30,7 +30,7 @@ doAdvertising() {
   echo -e "\nWelcome to use gitflow script! It will bring you convenience and orderly!"
   echo -e "If you want \033[1;35mUPDATE\033[0m the script, just use the commond below:"
   echo "================================================================"
-  echo -e "\033[0;36mcurl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \\ \nchmod +x ./install-gitflow && ./install-gitflow && rm ./install-gitflow\033[0m"
+  echo -e "\033[0;36mcurl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \\ \nchmod +x ./install-gitflow && ./install-gitflow github && rm ./install-gitflow\033[0m"
   echo "================================================================"
   echo -e "Click \033[0;35mhttps://github.com/zhaolandelong/git-workflow\033[0m to see more.\n"
 }
