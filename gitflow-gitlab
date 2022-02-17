@@ -3,9 +3,9 @@
 # @Author: zhaolandelong
 # @Date: 2021-12-30 05:36:44
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-16 21:56:25
+ # @LastEditTime: 2022-02-17 16:12:41
 ###
-# version: 1.0.0
+# version: 1.0.1
 # Dependencies:
 # - git
 # - gitlab personal access token(https://cli.github.com/https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#create-a-personal-access-token)
@@ -37,6 +37,15 @@ mrId=$(curl -s "$apiHost?state=opened&source_branch=$currentBranch" | sed 's/,/\
 cli() {
   # TODO: silence
   curl -s --header "PRIVATE-TOKEN: $token" "$@"
+}
+
+doAdvertising() {
+  echo -e "\nWelcome to use gitflow script! It will bring you convenience and orderly!"
+  echo -e "If you want \033[1;35mUPDATE\033[0m the script, just use the commond below:"
+  echo "================================================================"
+  echo -e "\033[0;36mcurl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \\ \nchmod +x ./install-gitflow && ./install-gitflow gitlab && rm ./install-gitflow\033[0m"
+  echo "================================================================"
+  echo -e "Click \033[0;35mhttps://github.com/zhaolandelong/git-workflow\033[0m to see more.\n"
 }
 
 setChangelog() {
@@ -250,7 +259,7 @@ doCheck() {
     echo -e "\n\033[0;31mPlease create a SEMVER tag and push it to origin first.\neg: 1.0.0, 0.0.0\033[0m\n"
     exit
   fi
-  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can comment the [doCheck] function (near line 300) to skip check.\033[0m"
+  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can comment the [doCheck] function (near line 330) to skip check.\033[0m"
 }
 
 main() {
@@ -322,6 +331,7 @@ main() {
   doWorkflow $type $method $branch
 }
 
+doAdvertising
 # NOTE: If you don't want check branch and tag, comment the following line.
 doCheck
 
