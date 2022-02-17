@@ -3,24 +3,24 @@
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-16 21:01:44
+ # @LastEditTime: 2022-02-17 09:25:39
 ###
-# version: 1.4.1
+# version: 1.5.0
 
 set -e
 echo "Installing..."
 
-latest=$(curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/gitflow | grep -E "# version:" | sed "s/# version: \(.*\)/\1/")
-echo -e "\033[1;32mlatest\033[0m: $latest"
-
-fileName="gitflow"
-varList=('deployBR' 'releaseBR' 'developBR' 'logFile' 'featPrefix' 'bugPrefix' 'hotPrefix')
-defaults=('master' 'release' 'develop' 'CHANGELOG.md' 'feature' 'bugfix' 'hotfix')
 if [ $1 == 'gitlab' ]; then
   scriptFile='gitflow-gitlab'
 else
   scriptFile='gitflow-github'
 fi
+latest=$(curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/$scriptFile | grep -E "# version:" | sed "s/# version: \(.*\)/\1/")
+echo -e "\033[1;32mlatest\033[0m: $latest"
+
+fileName="gitflow"
+varList=('deployBR' 'releaseBR' 'developBR' 'logFile' 'featPrefix' 'bugPrefix' 'hotPrefix')
+defaults=('master' 'release' 'develop' 'CHANGELOG.md' 'feature' 'bugfix' 'hotfix')
 
 i=1
 while ((i <= ${#varList[*]})); do
