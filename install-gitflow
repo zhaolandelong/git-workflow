@@ -3,9 +3,9 @@
 # @Author: zhaolandelong
 # @Date: 2022-02-09 18:00:49
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-17 09:25:39
+ # @LastEditTime: 2022-02-17 16:07:58
 ###
-# version: 1.5.0
+# version: 1.5.1
 
 set -e
 echo "Installing..."
@@ -87,7 +87,10 @@ doInstall() {
 
   if [ ${#logFile} -gt 0 ]; then
     if [ -e ./.gitignore -a $(grep -wc $logFile .gitignore) -eq 0 ]; then
-      echo -e "\n# Git workflow log\n$logFile\n.gitlab-config" >>.gitignore
+      echo -e "\n# Git workflow log\n$logFile" >>.gitignore
+      if [ $scriptFile == "gitflow-gitlab" -a $(grep -wc ".gitlab-config" .gitignore) -eq 0 ]; then
+        echo -e "\n# gitlab token\n.gitlab-config" >>.gitignore
+      fi
       git add .gitignore
     fi
   fi
