@@ -192,7 +192,7 @@ doSubmit() {
     git log --pretty=format:"- %ad %s (%h)" --date=format:"%m/%d %A %H:%M" $sourceBR...$targetBR >$logFile
     ;;
   esac
-  prStat=$(gh pr list -s open | grep -wc $sourceBR | xargs)
+  prStat=$(gh pr list --state open --base $targetBR --head $sourceBR | wc -l)
   if [ $prStat -eq 0 ]; then
     gh pr create --title "$title" --body-file "$logFile" --base "$targetBR" --label "$label"
   else
