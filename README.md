@@ -18,7 +18,7 @@
 3. 运行下列命令进行安装/升级
 ```bash
 curl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \
-chmod +x ./install-gitflow && ./install-gitflow github && ./install-gitflow
+chmod +x ./install-gitflow && ./install-gitflow github && rm ./install-gitflow
 ```
 
 ### Gitlab 版（beta）
