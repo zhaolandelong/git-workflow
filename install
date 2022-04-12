@@ -1,0 +1,59 @@
+#!/bin/bash
+###
+# @Author: zhaolandelong
+# @Date: 2022-04-12 18:00:49
+ # @LastEditors: zhaolandelong
+ # @LastEditTime: 2022-04-13 11:14:14
+###
+
+set -e
+echo -e "\033[0;32mInstalling...\033[0m"
+
+fileDomain="https://raw.githubusercontent.com/zhaolandelong/git-workflow/feature/config"
+configFile=".gitflow-config"
+gitflowFile="gitflow"
+
+tmpGitflow=$(curl -s "$fileDomain/$gitflowFile")
+
+latest=$(echo "$tmpGitflow" | grep -E "# version" | sed "s/# version=\"\(.*\)\"/\1/")
+
+if [ -e $gitflowFile ]; then
+  local=$(grep -E "# version" $gitflowFile | sed "s/# version=\"\(.*\)\"/\1/")
+  if [ $latest == $local ]; then
+    echo -e "\033[0;32mYou are currently using the latest version: $latest\033[0m"
+    exit
+  fi
+fi
+
+if [ ! -e $configFile ]; then
+  curl -s "$fileDomain/$configFile" >$configFile
+  git add $configFile
+fi
+source $configFile
+
+varList=('gitType' 'deployBR' 'releaseBR' 'developBR' 'featPrefix' 'bugPrefix' 'hotPrefix' 'logFile')
+
+echo -e "Your current config is shown below:\n"
+
+for var in ${varList[*]}; do
+  eval "echo -e \"- $var: \033[0;33m\$$var\033[0m\""
+done
+echo -e "\nPlease change the \"\033[0;35m$configFile\033[0m\" file if the config doesn't match.\n"
+
+echo "$tmpGitflow" >$gitflowFile && chmod +x ./$gitflowFile
+git add $gitflowFile
+
+gitignoreFile=".gitignore"
+if [ -e $gitignoreFile ]; then
+  if [ ${#logFile} -gt 0 -a $(grep -wc $logFile $gitignoreFile) -eq 0 ]; then
+    echo -e "\n# Git workflow log\n$logFile" >>$gitignoreFile
+    git add $gitignoreFile
+  fi
+  if [ $(grep -wc .git-token $gitignoreFile) -eq 0 ]; then
+    echo -e "\n.git-token" >>$gitignoreFile
+    git add $gitignoreFile
+  fi
+fi
+echo -e "\033[0;32mCongratulations! Gitflow $latest installation complete!\033[0m"
+
+git commit -m "chore(gitflow): install gitflow $latest :tada:"

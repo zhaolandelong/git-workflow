@@ -1,0 +1,27 @@
+#!/bin/bash
+# Type of Git server. Values: GitHub; GitLab
+gitType="GitHub"
+
+# Branch for production
+deployBR="master"
+# Branch for UAT or testing
+releaseBR="release"
+# Branch for development
+developBR="develop"
+
+# Prefix of branch for feature, eg: feature/feat1
+featPrefix="feature"
+# Prefix of branch for bug, eg: bugfix/bug1
+bugPrefix="bugfix"
+# Prefix of branch for hotfix, eg: hotfix/hot1
+hotPrefix="hotfix"
+
+# The filename of changelog, only be used locally, won't be upload to origin.
+logFile="CHANGELOG.md"
+
+# Whether skip the check of branch and tag. 0-do check; 1-skip check
+# You can set this to 1 after all things done.
+skipCheck=0
+
+# GitLab only. If use GitHub, just ignore.
+projectId="<Your Project ID here>"
