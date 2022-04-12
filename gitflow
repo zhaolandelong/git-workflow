@@ -1,36 +1,68 @@
 #!/bin/bash
 ###
 # @Author: zhaolandelong
-# @Date: 2021-12-30 05:36:44
+# @Date: 2022-04-12 16:10:09
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-02-10 18:06:08
+ # @LastEditTime: 2022-04-13 11:04:08
 ###
-# version: 1.4.1
-# Dependencies:
-# - git
-# - gh(https://cli.github.com/)
-# Notice: Run "chmod +x ./gitflow" in cmd if this script not work
+# version="2.0.0"
 
 set -e
 
-deployBR="master"
-releaseBR="release"
-developBR="develop"
+source .gitflow-config
 
-featPrefix="feature"
-bugPrefix="bugfix"
-hotPrefix="hotfix"
-
-logFile="CHANGELOG.md"
-
+currentBranch=$(git rev-parse --abbrev-ref HEAD)
 gitOriginUrl=$(grep -E "^\s+url = .+\.git$" .git/config | awk "{print \$3}")
 gitUrl=${gitOriginUrl:0:-4}
+
+# $1 - branch; $2 - arguments (Same as gh pr merge)
+prMerge() {
+  gh pr merge $1 $2
+}
+
+# $1 - $targetBR; $2 - $sourceBR; $3 - $title; $4 - $logFile; $5 - $label
+prEdit() {
+  prStat=$(gh pr list --state open --base $1 --head $2 | wc -l)
+  if [ $prStat -eq 0 ]; then
+    gh pr create --title "$3" --body-file "$4" --base "$1" --label "$5"
+  else
+    gh pr edit --body-file "$4"
+  fi
+}
+
+if [ $gitType == "GitLab" ]; then
+  # TODO: optimize
+  source .git-token # $token
+  apiDomain=$(echo $gitOriginUrl | sed 's/\(https\{0,1\}:\/\/[^\/]*\)\/.*/\1/')
+  apiHost="$apiDomain/api/v4/projects/$projectId/merge_requests"
+  mrId=$(curl -s "$apiHost?state=opened&source_branch=$currentBranch" | sed 's/,/\n/g' | grep "iid" | sed -n '1p' | sed 's/:/ /g' | awk '{print $2}')
+
+  prMerge() {
+    shouldDel="false"
+    if [ $(echo "$2" | grep -c "d") -ne 0 ]; then
+      shouldDel="true"
+    fi
+    curl -s --header "PRIVATE-TOKEN: $token" --request PUT -d should_remove_source_branch=$shouldDel "$apiHost/$mrId/merge"
+    if [ $shouldDel == "true" ]; then
+      git checkout $deployBR && git branch -D $1
+    fi
+  }
+
+  prEdit() {
+    if [ ${#mrId} -eq 0 ]; then
+      # TODO: label
+      curl -s --header "PRIVATE-TOKEN: $token" "$@" --request POST -d title="$3" -d description="$(cat $4)" -d source_branch="$2" -d target_branch="$1" "$apiHost"
+    else
+      curl -s --header "PRIVATE-TOKEN: $token" "$@" --request PUT -d description="$(cat $4)" "$apiHost/$mrId"
+    fi
+  }
+fi
 
 doAdvertising() {
   echo -e "\nWelcome to use gitflow script! It will bring you convenience and orderly!"
   echo -e "If you want \033[1;35mUPDATE\033[0m the script, just use the commond below:"
   echo "================================================================"
-  echo -e "\033[0;36mcurl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \\ \nchmod +x ./install-gitflow && ./install-gitflow && rm ./install-gitflow\033[0m"
+  echo -e "\033[0;36mcurl https://raw.githubusercontent.com/zhaolandelong/git-workflow/main/install-gitflow >install-gitflow && \\ \nchmod +x ./install-gitflow && ./install-gitflow [github/gitlab] && rm ./install-gitflow\033[0m"
   echo "================================================================"
   echo -e "Click \033[0;35mhttps://github.com/zhaolandelong/git-workflow\033[0m to see more.\n"
 }
@@ -51,7 +83,7 @@ doCheck() {
     echo -e "\n\033[0;31mPlease create a SEMVER tag and push it to origin first.\neg: 1.0.0, 0.0.0\033[0m\n"
     exit
   fi
-  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can comment the [doCheck] function (near line 300) to skip check.\033[0m"
+  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can set 'skipCheck=1' in config to skip check.\033[0m"
 }
 
 setChangelog() {
@@ -124,49 +156,6 @@ doRebaseAndPush() {
   echo -e "\n\033[0;32m===== $sourceBR rebase $targetBR finish =====\033[0m\n"
 }
 
-doReleaseAndSync() {
-  gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
-  doRebaseAndPush $releaseBR $deployBR
-  doRebaseAndPush $developBR $releaseBR
-}
-
-doFinish() {
-  type=$1
-  sourceBR=$2
-  oldVersion=$_tagVersion
-
-  case $type in
-  $featPrefix)
-    gh pr merge $sourceBR -rd
-    ;;
-  $bugPrefix)
-    gh pr merge $sourceBR -rd
-    doRebaseAndPush $developBR $releaseBR
-    ;;
-  $hotPrefix)
-    _updateVersion $oldVersion patch
-    gh pr merge $sourceBR -rd
-    gitCoAndPull $deployBR
-    git tag $_tagVersion && git push origin $_tagVersion
-    setChangelog $oldVersion $_tagVersion
-    doReleaseAndSync
-    ;;
-  "UAT")
-    gh pr merge $sourceBR -r
-    doRebaseAndPush $developBR $releaseBR
-    ;;
-  "DEPLOY")
-    _updateVersion $oldVersion minor
-    gh pr merge $sourceBR -r
-    gitCoAndPull $deployBR
-    git tag $_tagVersion && git push origin $_tagVersion
-    setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
-    doReleaseAndSync
-    ;;
-  esac
-  gitCoAndPull $developBR
-}
-
 doSubmit() {
   type=$1
   sourceBR=$2
@@ -192,12 +181,50 @@ doSubmit() {
     git log --pretty=format:"- %ad %s (%h)" --date=format:"%m/%d %A %H:%M" $sourceBR...$targetBR >$logFile
     ;;
   esac
-  prStat=$(gh pr list --state open --base $targetBR --head $sourceBR | wc -l)
-  if [ $prStat -eq 0 ]; then
-    gh pr create --title "$title" --body-file "$logFile" --base "$targetBR" --label "$label"
-  else
-    gh pr edit --body-file "$logFile"
-  fi
+  prEdit $targetBR $sourceBR $title $logFile $label
+}
+
+doReleaseAndSync() {
+  # gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
+  doRebaseAndPush $releaseBR $deployBR
+  doRebaseAndPush $developBR $releaseBR
+}
+
+doFinish() {
+  type=$1
+  sourceBR=$2
+  oldVersion=$_tagVersion
+
+  case $type in
+  $featPrefix)
+    prMerge $sourceBR -rd
+    ;;
+  $bugPrefix)
+    prMerge $sourceBR -rd
+    doRebaseAndPush $developBR $releaseBR
+    ;;
+  $hotPrefix)
+    _updateVersion $oldVersion patch
+    prMerge $sourceBR -rd
+    gitCoAndPull $deployBR
+    git tag $_tagVersion && git push origin $_tagVersion
+    setChangelog $oldVersion $_tagVersion
+    doReleaseAndSync
+    ;;
+  "UAT")
+    prMerge $sourceBR -r
+    doRebaseAndPush $developBR $releaseBR
+    ;;
+  "DEPLOY")
+    _updateVersion $oldVersion minor
+    prMerge $sourceBR -r
+    gitCoAndPull $deployBR
+    git tag $_tagVersion && git push origin $_tagVersion
+    setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
+    doReleaseAndSync
+    ;;
+  esac
+  gitCoAndPull $developBR
 }
 
 doWorkflow() {
@@ -255,7 +282,6 @@ main() {
 
   # Auto fill the params if the branch name has "/"
   if [ ${#type} -eq 0 ]; then
-    currentBranch=$(git rev-parse --abbrev-ref HEAD)
     split_index=$(expr index "$currentBranch" / | xargs)
     if [ $split_index -ne 0 ]; then
       tmpType=${currentBranch:0:split_index-1}
@@ -318,9 +344,12 @@ main() {
 }
 
 doAdvertising
-# NOTE: If you don't want check branch and tag, comment the following line.
-doCheck
 
+if [ $skipCheck -ne 1 ]; then
+  doCheck
+fi
+
+# TODO: bug
 _tagVersion=$(git ls-remote --tags origin | awk "{print \$2}" | sort -t "." -k1,1n -k2,2n -k3,3n | awk "END{print}" | sed "s/.*\/\([0-9\.]*\).*/\1/g")
 echo -e "\033[1;32mlatest\033[0m: $_tagVersion"
 
