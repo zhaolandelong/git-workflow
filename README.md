@@ -17,7 +17,7 @@ curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/master/inst
 > 说明：若想安装某指定版本，只需将命令中的 `master` 改为相应版本号即可。
 2. 根据项目情况，修改 `.gitflow-config` 中的配置，详见文件的注释；
 3. 切好配置中相应的分支并推到远程，例：`git checkout -b develop && git push --set-upstream origin develop`；
-4. 在主分支（deployBR）打好符合 [semver](https://semver.org/) 规范的 tag，并推到远程。例：`git tag 1.0.0 && git push origin 1.0.0`。
+4. 在主分支（deployBR）打好符合 [SemVer](https://semver.org/) 规范的 tag，并推到远程。例：`git tag 1.0.0 && git push origin 1.0.0`。
 5. （GitLab Only）如果使用的是 GitLab，除修改 `.gitflow-config` 中的 `gitType` 为 `GitLab` 以外，还需修改 `projectId` 的值。可以在项目主页，项目名的下方副标题里找到；
 
 以上内容只需要在项目级别运行一次即可，余下的操作涉及到个人本地使用的初始化，所以每个人都需要执行一次。另外 GitHub 与 GitLab 有所不同。
@@ -35,7 +35,7 @@ echo -e "token=\"<your token>\"" >.git-token
 
 > **说明**
 > - 如果顺利的按引导完成了安装、打版本号、切功能分支，那么就可以开始使用了，否则还需要手动补上未做缺失的步骤。
-> - 该脚本会以最新的远端 tag 为基础更新版本号，版本号请**务必符合 [semver](https://semver.org/) 规范**。
+> - 该脚本会以最新的远端 tag 为基础更新版本号，版本号请**务必符合 [SemVer](https://semver.org/) 规范**。
 > - 目前 GitHub 版合并全部用的 rebase，但是 GitLab 版合并 MR 时用的 merge（Gitlab 默认状态下的唯一方式），分支同步用的 rebase，这一点在充分收集实践经验后会进行最后确认。
 
 ## 升级
