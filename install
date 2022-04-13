@@ -3,13 +3,13 @@
 # @Author: zhaolandelong
 # @Date: 2022-04-12 18:00:49
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-04-13 11:14:14
+ # @LastEditTime: 2022-04-13 13:13:56
 ###
 
 set -e
 echo -e "\033[0;32mInstalling...\033[0m"
 
-fileDomain="https://raw.githubusercontent.com/zhaolandelong/git-workflow/feature/config"
+fileDomain="https://raw.githubusercontent.com/zhaolandelong/git-workflow/master"
 configFile=".gitflow-config"
 gitflowFile="gitflow"
 
