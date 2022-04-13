@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2022-04-12 16:10:09
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-04-13 13:18:48
+ # @LastEditTime: 2022-04-13 13:30:32
 ###
 # version="2.0.0"
 
@@ -181,7 +181,7 @@ doSubmit() {
     git log --pretty=format:"- %ad %s (%h)" --date=format:"%m/%d %A %H:%M" $sourceBR...$targetBR >$logFile
     ;;
   esac
-  prEdit $targetBR $sourceBR $title $logFile $label
+  prEdit "$targetBR" "$sourceBR" "$title" "$logFile" "$label"
 }
 
 doReleaseAndSync() {
