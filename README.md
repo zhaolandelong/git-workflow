@@ -9,8 +9,9 @@
 
 更详细的信息见：[Gitflow 太繁琐？为什么不自动化呢](https://juejin.cn/post/7056410651563917326)。
 
-## 安装
-1. 进入项目根目录，运行如下命令（之后更新只需再次运行如下命令即可，其他操作不需要执行）
+## 安装与更新
+### 安装
+1. 进入项目根目录，运行如下命令
 ```bash
 curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/master/install | bash
 ```
@@ -22,10 +23,10 @@ curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/master/inst
 
 以上内容只需要在项目级别运行一次即可，余下的操作涉及到个人本地使用的初始化，所以每个人都需要执行一次。另外 GitHub 与 GitLab 有所不同。
 
-### GitHub
+#### GitHub
 - 安装 [gh](https://cli.github.com/)，并在**项目根目录**执行 `gh auth login`，推荐使用浏览器模式授权，安装方法见官网。
 
-### GitLab（beta）
+#### GitLab（beta）
 
 - 生成自己的 `Access Token`，方法详见 [官网文档](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#create-a-personal-access-token)；
 - 将刚生成的 token 写入 `.git-token` 中，在**项目根目录**运行以下命令即可
@@ -38,13 +39,13 @@ echo -e "token=\"<your token>\"" >.git-token
 > - 该脚本会以最新的远端 tag 为基础更新版本号，版本号请**务必符合 [SemVer](https://semver.org/) 规范**。
 > - 目前 GitHub 版合并全部用的 rebase，但是 GitLab 版合并 MR 时用的 merge（Gitlab 默认状态下的唯一方式），分支同步用的 rebase，这一点在充分收集实践经验后会进行最后确认。
 
-## 升级
+### 更新
 在项目根目录再次运行如下命令即可
 ```bash
 curl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/master/install | bash
 ```
 
-## 使用
+## 常规使用
 正常的流转步骤为： feature => UAT => bugfix => DEPLOY 或直接 hotfix。
 
 在项目根目录运行 `./gitflow` 就会有可交互的提示。演示如下：
@@ -115,14 +116,20 @@ What's the method?
 ### Feature Finish
 运行步骤没有什么特别，但是要注意，使用此命令的人是否有对应 target 分支的合并权限，具体请见 [Gitflow 太繁琐？为什么不自动化呢](https://juejin.cn/post/7056410651563917326) 中的表格。
 
-### Major update
-特别的，当要进行大版本更新时，如 `1.x.x -> 2.0.0`，需要用特殊的命令，如下
-```bash
-./gitflow DEPLOY x submit x
-./gitflow DEPLOY x finish x
-```
-主要要传入第 4 个参数，只要其有值，就会强制使用 major 更新版本。
+## 进阶使用
 
-> **注意**
-> 
-> 脚本会先执行 doCheck 方法来校验分支和 tag 的合法性，因为会读取 git 远程信息，所以会有一定的性能开销。如果已经按照步骤完成分支与 tag 的准备并通过 doCheck 的检查，将 `.gitflow-config` 中的 `skipCheck` 修改为 `1`，跳过检查即可。
+### 传参简化
+`./gitflow` 是可以跟参数的，输入了参数就不需要像常规用法一样挨个选择了，参数如下：
+```bash
+./gitflow <type> <name> <method> <forceMajor>
+```
+举例：
+- 比如上文的 Feature Start 案例，相当于 `./gitflow feature changelog-init start` 命令。
+- 因为 UAT、DEPLOY 命令不需要 name 参数，所以随意输入一个非空字符即可，比如 `./gitflow UAT x submit`；
+- 特别的，当要进行大版本更新时，如 `1.x.x -> 2.0.0`，才会需要第 4 个参数，同样也是给一个非空字符即可，如 `./gitflow DEPLOY x submit x`。
+
+### 特殊配置
+- **跳过检查**：脚本会先执行 doCheck 方法来校验分支和 tag 的合法性，因为会读取 git 远程信息，所以会有一定的性能开销。如果想跳过检查，将 `skipCheck` 修改为 `1` 即可；
+- **关闭分支同步**：通常在 finish 操作后，需要对 deployBR、releaseBR、developBR 进行同步，并需要用 `git push --force-with-lease` 命令推到远端。如果不想自动同步，将 `notSyncAfterFinish` 修改为 `1` 即可。
+
+更多内容见 [.gitflow-config](./.gitflow-config) 中的注释。
