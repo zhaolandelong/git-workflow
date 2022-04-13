@@ -19,9 +19,13 @@ hotPrefix="hotfix"
 # The filename of changelog, only be used locally, won't be upload to origin.
 logFile="CHANGELOG.md"
 
-# Whether skip the check of branch and tag. 0-do check; 1-skip check
-# You can set this to 1 after all things done.
+# Whether skip the check of branch and tag.
+# 0-do check; 1-skip check
 skipCheck=0
+
+# Whether sync deployBR, releaseBR, developBR after finish. 
+# 0-sync; 1-not sync
+notSyncAfterFinish=0
 
 # GitLab only. If use GitHub, just ignore.
 projectId="<Your Project ID here>"
