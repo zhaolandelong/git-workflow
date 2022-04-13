@@ -3,9 +3,9 @@
 # @Author: zhaolandelong
 # @Date: 2022-04-12 16:10:09
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-04-13 15:29:06
+ # @LastEditTime: 2022-04-13 17:07:49
 ###
-# version="2.0.0"
+# version="2.0.1"
 
 set -e
 
@@ -168,31 +168,28 @@ doSubmit() {
   label=$4
 
   oldVersion=$_tagVersion
-  doRebaseAndPush $sourceBR $targetBR
 
   case $type in
   "DEPLOY" | "UAT")
+    gitCoAndPull $targetBR
+    gitCoAndPull $sourceBR
     _updateVersion $oldVersion minor
     title="$type: $_tagVersion"
     setChangelog $oldVersion HEAD "## [$title]"
     ;;
   $hotPrefix)
+    doRebaseAndPush $sourceBR $targetBR
     _updateVersion $oldVersion patch
     title="HOTFIX($_tagVersion): $sourceBR"
     setChangelog $oldVersion HEAD "## [$title]"
     ;;
   *)
+    doRebaseAndPush $sourceBR $targetBR
     title="$sourceBR to $targetBR"
     git log --pretty=format:"- %ad %s (%h)" --date=format:"%m/%d %A %H:%M" $sourceBR...$targetBR >$logFile
     ;;
   esac
   prEdit "$targetBR" "$sourceBR" "$title" "$logFile" "$label"
-}
-
-doReleaseAndSync() {
-  # gh release create "$_tagVersion" --title "$_tagVersion" --notes-file "$logFile"
-  doRebaseAndPush $releaseBR $deployBR
-  doRebaseAndPush $developBR $releaseBR
 }
 
 doFinish() {
@@ -214,7 +211,8 @@ doFinish() {
     gitCoAndPull $deployBR
     git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion
-    doReleaseAndSync
+    doRebaseAndPush $releaseBR $deployBR
+    doRebaseAndPush $developBR $releaseBR
     ;;
   "UAT")
     prMerge $sourceBR -r
@@ -226,7 +224,8 @@ doFinish() {
     gitCoAndPull $deployBR
     git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
-    doReleaseAndSync
+    doRebaseAndPush $releaseBR $deployBR
+    doRebaseAndPush $developBR $releaseBR
     ;;
   esac
   gitCoAndPull $developBR
