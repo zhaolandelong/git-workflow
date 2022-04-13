@@ -3,7 +3,7 @@
 # @Author: zhaolandelong
 # @Date: 2022-04-12 16:10:09
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-04-13 13:30:32
+ # @LastEditTime: 2022-04-13 15:29:06
 ###
 # version="2.0.0"
 
@@ -14,6 +14,7 @@ source .gitflow-config
 currentBranch=$(git rev-parse --abbrev-ref HEAD)
 gitOriginUrl=$(grep -E "^\s+url = .+\.git$" .git/config | awk "{print \$3}")
 gitUrl=${gitOriginUrl:0:-4}
+forceMajor=$4
 
 # $1 - branch; $2 - arguments (Same as gh pr merge)
 prMerge() {
@@ -128,11 +129,15 @@ _updateVersion() {
 $ver
 EOF
 
-  case "$2" in
-  patch) tag="$major.$minor.$((patch + 1))" ;;
-  major) tag="$((major + 1)).0.0" ;;
-  *) tag="$major.$((minor + 1)).0" ;;
-  esac
+  if [ ${#forceMajor} -eq 0 ]; then
+    case "$2" in
+    patch) tag="$major.$minor.$((patch + 1))" ;;
+    major) tag="$((major + 1)).0.0" ;;
+    *) tag="$major.$((minor + 1)).0" ;;
+    esac
+  else
+    tag="$((major + 1)).0.0"
+  fi
 
   _tagVersion=$tag
 }

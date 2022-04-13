@@ -114,6 +114,15 @@ What's the method?
 
 ### Feature Finish
 运行步骤没有什么特别，但是要注意，使用此命令的人是否有对应 target 分支的合并权限，具体请见 [Gitflow 太繁琐？为什么不自动化呢](https://juejin.cn/post/7056410651563917326) 中的表格。
+
+### Major update
+特别的，当要进行大版本更新时，如 `1.x.x -> 2.0.0`，需要用特殊的命令，如下
+```bash
+./gitflow DEPLOY x submit x
+./gitflow DEPLOY x finish x
+```
+主要要传入第 4 个参数，只要其有值，就会强制使用 major 更新版本。
+
 > **注意**
 > 
 > 脚本会先执行 doCheck 方法来校验分支和 tag 的合法性，因为会读取 git 远程信息，所以会有一定的性能开销。如果已经按照步骤完成分支与 tag 的准备并通过 doCheck 的检查，将 `.gitflow-config` 中的 `skipCheck` 修改为 `1`，跳过检查即可。
