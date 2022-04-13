@@ -3,9 +3,9 @@
 # @Author: zhaolandelong
 # @Date: 2022-04-12 16:10:09
  # @LastEditors: zhaolandelong
- # @LastEditTime: 2022-04-13 17:07:49
+ # @LastEditTime: 2022-04-13 17:39:18
 ###
-# version="2.0.1"
+# version="2.1.0"
 
 set -e
 
@@ -203,7 +203,9 @@ doFinish() {
     ;;
   $bugPrefix)
     prMerge $sourceBR -rd
-    doRebaseAndPush $developBR $releaseBR
+    if [ $notSyncAfterFinish -ne 1 ]; then
+      doRebaseAndPush $developBR $releaseBR
+    fi
     ;;
   $hotPrefix)
     _updateVersion $oldVersion patch
@@ -211,12 +213,16 @@ doFinish() {
     gitCoAndPull $deployBR
     git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion
-    doRebaseAndPush $releaseBR $deployBR
-    doRebaseAndPush $developBR $releaseBR
+    if [ $notSyncAfterFinish -ne 1 ]; then
+      doRebaseAndPush $releaseBR $deployBR
+      doRebaseAndPush $developBR $releaseBR
+    fi
     ;;
   "UAT")
     prMerge $sourceBR -r
-    doRebaseAndPush $developBR $releaseBR
+    if [ $notSyncAfterFinish -ne 1 ]; then
+      doRebaseAndPush $developBR $releaseBR
+    fi
     ;;
   "DEPLOY")
     _updateVersion $oldVersion minor
@@ -224,8 +230,10 @@ doFinish() {
     gitCoAndPull $deployBR
     git tag $_tagVersion && git push origin $_tagVersion
     setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
-    doRebaseAndPush $releaseBR $deployBR
-    doRebaseAndPush $developBR $releaseBR
+    if [ $notSyncAfterFinish -ne 1 ]; then
+      doRebaseAndPush $releaseBR $deployBR
+      doRebaseAndPush $developBR $releaseBR
+    fi
     ;;
   esac
   gitCoAndPull $developBR
