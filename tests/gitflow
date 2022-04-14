@@ -1,0 +1,367 @@
+#!/bin/bash
+###
+# @Author: zhaolandelong
+# @Date: 2022-04-12 16:10:09
+ # @LastEditors: zhaolandelong
+ # @LastEditTime: 2022-04-13 17:39:18
+###
+# version="2.1.0"
+
+set -e
+
+source .gitflow-config
+
+currentBranch=$(git rev-parse --abbrev-ref HEAD)
+gitOriginUrl=$(grep -E "^\s+url = .+\.git$" .git/config | awk "{print \$3}")
+gitUrl=${gitOriginUrl:0:-4}
+forceMajor=$4
+
+# $1 - branch; $2 - arguments (Same as gh pr merge)
+prMerge() {
+  gh pr merge $1 $2
+}
+
+# $1 - $targetBR; $2 - $sourceBR; $3 - $title; $4 - $logFile; $5 - $label
+prEdit() {
+  prStat=$(gh pr list --state open --base $1 --head $2 | wc -l)
+  if [ $prStat -eq 0 ]; then
+    gh pr create --title "$3" --body-file "$4" --base "$1" --label "$5"
+  else
+    gh pr edit --body-file "$4"
+  fi
+}
+
+if [ $gitType == "GitLab" ]; then
+  # TODO: optimize
+  source .git-token # $token
+  apiDomain=$(echo $gitOriginUrl | sed 's/\(https\{0,1\}:\/\/[^\/]*\)\/.*/\1/')
+  apiHost="$apiDomain/api/v4/projects/$projectId/merge_requests"
+  mrId=$(curl -s "$apiHost?state=opened&source_branch=$currentBranch" | sed 's/,/\n/g' | grep "iid" | sed -n '1p' | sed 's/:/ /g' | awk '{print $2}')
+
+  prMerge() {
+    shouldDel="false"
+    if [ $(echo "$2" | grep -c "d") -ne 0 ]; then
+      shouldDel="true"
+    fi
+    curl -s --header "PRIVATE-TOKEN: $token" --request PUT -d should_remove_source_branch=$shouldDel "$apiHost/$mrId/merge"
+    if [ $shouldDel == "true" ]; then
+      git checkout $deployBR && git branch -D $1
+    fi
+  }
+
+  prEdit() {
+    if [ ${#mrId} -eq 0 ]; then
+      # TODO: label
+      curl -s --header "PRIVATE-TOKEN: $token" "$@" --request POST -d title="$3" -d description="$(cat $4)" -d source_branch="$2" -d target_branch="$1" "$apiHost"
+    else
+      curl -s --header "PRIVATE-TOKEN: $token" "$@" --request PUT -d description="$(cat $4)" "$apiHost/$mrId"
+    fi
+  }
+fi
+
+doAdvertising() {
+  echo -e "\nWelcome to use gitflow script! It will bring you convenience and orderly!"
+  echo -e "If you want \033[1;35mUPDATE\033[0m the script, just use the commond below:"
+  echo "================================================================"
+  echo -e "\033[0;36mcurl -s https://raw.githubusercontent.com/zhaolandelong/git-workflow/master/install | bash\033[0m"
+  echo "================================================================"
+  echo -e "Click \033[0;35mhttps://github.com/zhaolandelong/git-workflow\033[0m to see more.\n"
+}
+
+doCheck() {
+  # branch check
+  git fetch -p
+  if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($deployBR|$releaseBR|$developBR)") -ne 3 ]; then
+    echo -e "\n\033[0;31mPlease create [$deployBR, $releaseBR, $developBR] branches and push them to origin first.\033[0m\n"
+    exit
+  fi
+  if [ $(git branch -r | grep -v "HEAD" | grep -Ewc " origin/($featPrefix|$bugPrefix|$hotPrefix)$") -gt 0 ]; then
+    echo -e "\n\033[0;31mThere can't be branch named [$featPrefix, $bugPrefix, $hotPrefix], please delete them or change the [Prefix VAR] in the gitflow script.\033[0m\n"
+    exit
+  fi
+  # tag check
+  if [ $(git ls-remote --tags origin | awk '{print $2}' | grep -Ec "^refs/tags/[0-9]+\.[0-9]+\.[0-9]+(\^\{\})?$") -eq 0 ]; then
+    echo -e "\n\033[0;31mPlease create a SEMVER tag and push it to origin first.\neg: 1.0.0, 0.0.0\033[0m\n"
+    exit
+  fi
+  echo -e "\033[0;32mAll Checks Passed!\033[0m\n\033[0;33mYou can set 'skipCheck=1' in config to skip check.\033[0m"
+}
+
+setChangelog() {
+  preCommit=$1
+  curCommit=$2
+  title="## [$2]"
+  if [ ${#3} -gt 0 ]; then
+    title=$3
+  fi
+
+  curCommitInfo=$(git show $curCommit -s --pretty=format:"%cd %H" --date=format:"%Y-%m-%d" | awk "END{print}")
+  if [ $curCommit == "HEAD" ]; then
+    curCommit=$(echo $curCommitInfo | awk '{print $2}')
+  fi
+
+  echo -e "$title($gitUrl/compare/$preCommit...$curCommit) ($(echo $curCommitInfo | awk '{print $1}'))\n" >$logFile
+
+  logType=('fix' 'feat' 'perf' 'revert')
+  logTitle=('Bug Fixes' 'Features' 'Performance Improvementes' 'Reverts')
+  logs=$(git log --pretty=format:"%s ([%h]($gitUrl/commits/%H))" $preCommit...$curCommit)
+
+  i=1
+  while ((i <= ${#logType[*]})); do
+    type=${logType[$i - 1]}
+    if [ $(echo "$logs" | grep -Ec "^$type(\(.+\))?: ") -gt 0 ]; then
+      echo -e "\n### ${logTitle[$i - 1]}\n" >>$logFile
+      echo "$logs" | grep -E "^$type: " | sed "s/$type:/*/" >>$logFile
+      echo "$logs" | grep -E "^$type\(.+\): " | sort | sed "s/$type(\(.*\)):/* **\1:**/" >>$logFile
+    fi
+    let i++
+  done
+}
+
+# SIDE EFFECTS
+# Usage:
+# _updateVersion 1.2.3 patch
+# echo $_tagVersion # 1.2.4
+_updateVersion() {
+  ver=$1
+
+  IFS=. read -r major minor patch <<EOF
+$ver
+EOF
+
+  if [ ${#forceMajor} -eq 0 ]; then
+    case "$2" in
+    patch) tag="$major.$minor.$((patch + 1))" ;;
+    major) tag="$((major + 1)).0.0" ;;
+    *) tag="$major.$((minor + 1)).0" ;;
+    esac
+  else
+    tag="$((major + 1)).0.0"
+  fi
+
+  _tagVersion=$tag
+}
+
+gitCoAndPull() {
+  git fetch -p
+  git checkout $1
+  if [ $(git branch -r | grep -wc "origin/$1$") -gt 0 ]; then
+    git pull -r origin $1
+  fi
+}
+
+doRebaseAndPush() {
+  sourceBR=$1
+  targetBR=$2
+  echo -e "\n\033[0;34m===== $sourceBR rebase $targetBR start =====\033[0m\n"
+  gitCoAndPull $targetBR
+  gitCoAndPull $sourceBR
+  git rebase $targetBR $sourceBR
+  git push --set-upstream origin $sourceBR --force-with-lease
+  echo -e "\n\033[0;32m===== $sourceBR rebase $targetBR finish =====\033[0m\n"
+}
+
+doSubmit() {
+  type=$1
+  sourceBR=$2
+  targetBR=$3
+  label=$4
+
+  oldVersion=$_tagVersion
+
+  case $type in
+  "DEPLOY" | "UAT")
+    gitCoAndPull $targetBR
+    gitCoAndPull $sourceBR
+    _updateVersion $oldVersion minor
+    title="$type: $_tagVersion"
+    setChangelog $oldVersion HEAD "## [$title]"
+    ;;
+  $hotPrefix)
+    doRebaseAndPush $sourceBR $targetBR
+    _updateVersion $oldVersion patch
+    title="HOTFIX($_tagVersion): $sourceBR"
+    setChangelog $oldVersion HEAD "## [$title]"
+    ;;
+  *)
+    doRebaseAndPush $sourceBR $targetBR
+    title="$sourceBR to $targetBR"
+    git log --pretty=format:"- %ad %s (%h)" --date=format:"%m/%d %A %H:%M" $sourceBR...$targetBR >$logFile
+    ;;
+  esac
+  prEdit "$targetBR" "$sourceBR" "$title" "$logFile" "$label"
+}
+
+doFinish() {
+  type=$1
+  sourceBR=$2
+  oldVersion=$_tagVersion
+
+  case $type in
+  $featPrefix)
+    prMerge $sourceBR -rd
+    ;;
+  $bugPrefix)
+    prMerge $sourceBR -rd
+    if [ $notSyncAfterFinish -ne 1 ]; then
+      doRebaseAndPush $developBR $releaseBR
+    fi
+    ;;
+  $hotPrefix)
+    _updateVersion $oldVersion patch
+    prMerge $sourceBR -rd
+    gitCoAndPull $deployBR
+    git tag $_tagVersion && git push origin $_tagVersion
+    setChangelog $oldVersion $_tagVersion
+    if [ $notSyncAfterFinish -ne 1 ]; then
+      doRebaseAndPush $releaseBR $deployBR
+      doRebaseAndPush $developBR $releaseBR
+    fi
+    ;;
+  "UAT")
+    prMerge $sourceBR -r
+    if [ $notSyncAfterFinish -ne 1 ]; then
+      doRebaseAndPush $developBR $releaseBR
+    fi
+    ;;
+  "DEPLOY")
+    _updateVersion $oldVersion minor
+    prMerge $sourceBR -r
+    gitCoAndPull $deployBR
+    git tag $_tagVersion && git push origin $_tagVersion
+    setChangelog $oldVersion $_tagVersion "# [$_tagVersion]"
+    if [ $notSyncAfterFinish -ne 1 ]; then
+      doRebaseAndPush $releaseBR $deployBR
+      doRebaseAndPush $developBR $releaseBR
+    fi
+    ;;
+  esac
+  gitCoAndPull $developBR
+}
+
+doWorkflow() {
+  type=$1
+  method=$2
+  sourceBR=$3
+
+  targetBR=""
+  label=""
+
+  case $type in
+  $featPrefix)
+    targetBR=$developBR
+    label="enhancement"
+    ;;
+  $bugPrefix)
+    targetBR=$releaseBR
+    label="invalid"
+    ;;
+  $hotPrefix)
+    targetBR=$deployBR
+    label="bug"
+    ;;
+  "UAT")
+    targetBR=$releaseBR
+    ;;
+  "DEPLOY")
+    targetBR=$deployBR
+    ;;
+  esac
+
+  case $method in
+  "start")
+    if [ $type == "UAT" -o $type == "DEPLOY" ]; then
+      echo "UAT and DEPOLY can't start"
+      exit
+    fi
+    gitCoAndPull $targetBR
+    git checkout -b $sourceBR
+    ;;
+  "submit")
+    doSubmit $type $sourceBR $targetBR $label
+    ;;
+  "finish")
+    doFinish $type $sourceBR
+    ;;
+  esac
+}
+
+main() {
+  type=$1
+  name=$2
+  method=$3
+  branch=""
+
+  # Auto fill the params if the branch name has "/"
+  if [ ${#type} -eq 0 ]; then
+    split_index=$(expr index "$currentBranch" / | xargs)
+    if [ $split_index -ne 0 ]; then
+      tmpType=${currentBranch:0:split_index-1}
+      tmpName=${currentBranch:split_index:${#currentBranch}}
+      echo "Do you want to use current params?"
+      echo "- Type: $tmpType"
+      echo "- Name: $tmpName"
+      select confirm in "yes" "no"; do
+        if [ $confirm == "yes" ]; then
+          type=$tmpType
+          name=$tmpName
+        fi
+        break
+      done
+    fi
+  fi
+
+  # Fill $type
+  if [ ${#type} -eq 0 ]; then
+    echo "What's the type? (Notice: Admin Permission needed with UAT and DEPLOY)"
+    select type in $featPrefix $bugPrefix $hotPrefix "UAT" "DEPLOY"; do
+      echo "- Type: $type"
+      break
+    done
+  fi
+
+  # Fill $name
+  if [ $type != "UAT" -a $type != "DEPLOY" -a ${#name} -eq 0 ]; then
+    echo "What's the name (description for short. eg: btn-display-error)?"
+    read name
+    echo "- Name: $name"
+  fi
+
+  # Generate $branch
+  case $type in
+  "UAT")
+    branch=$developBR
+    ;;
+  "DEPLOY")
+    branch=$releaseBR
+    ;;
+  *)
+    branch="$type/$name"
+    ;;
+  esac
+
+  # Fill $method
+  if [ ${#method} -eq 0 ]; then
+    echo "What's the method?"
+    echo "- start: Start a work and create a new branch"
+    echo "- submit: Create or Update a PR"
+    echo "- finish: Merge the PR, delete the branch and rebase to sync branch"
+    select method in "start" "submit" "finish"; do
+      echo "- Method: $method"
+      break
+    done
+  fi
+
+  doWorkflow $type $method $branch
+}
+
+doAdvertising
+
+if [ $skipCheck -ne 1 ]; then
+  doCheck
+fi
+
+_tagVersion=$(git ls-remote --tags origin | awk "{print \$2}" | awk -F "/" "{print \$3}" | grep -E "^[0-9]+\.[0-9]+.[0-9]+$" | sort -t "." -k1,1n -k2,2n -k3,3n | awk "END{print}")
+echo -e "\033[1;32mLatest SemVer Tag\033[0m: $_tagVersion"
+
+main $1 $2 $3
